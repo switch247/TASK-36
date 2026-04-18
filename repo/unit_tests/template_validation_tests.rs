@@ -4,10 +4,11 @@ mod common;
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+    use super::common;
 
     use serde_json::json;
 
-    use app_api_v1::template_validation::{validate_against_template, validate_against_template_partial};
+    use app_api_v1::{validate_against_template, validate_against_template_partial};
 
     #[rocket::async_test]
     async fn template_validation_accepts_complete_payload_and_partial_updates() {

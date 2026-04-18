@@ -26,6 +26,7 @@ pub use outputs::{print_admit_cards, print_door_signs, print_seating_charts, pri
 pub use exports::{export_csv, export_excel, export_pdf};
 pub use templates::{create_template, delete_template, list_templates, lock_template, update_template};
 pub use scans::lookup_scan;
+pub use template_validation::{validate_against_template, validate_against_template_partial};
 
 use rocket::{routes, Route};
 
