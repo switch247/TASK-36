@@ -1,4 +1,4 @@
-﻿#[cfg(test)]
+#[cfg(test)]
 mod tests {
     use app_core::cleanse::{normalize_mmddyyyy, standardize_currency_to_usd, standardize_units};
 
@@ -11,13 +11,15 @@ mod tests {
 
     #[test]
     fn standardizes_currency_to_usd() {
-        let usd = standardize_currency_to_usd(100.0, "KES", 0.0078).expect("currency conversion should succeed");
+        let usd = standardize_currency_to_usd(100.0, "KES", 0.0078)
+            .expect("currency conversion should succeed");
         assert_eq!(usd, "USD 0.78");
     }
 
     #[test]
     fn normalizes_mmddyyyy_to_iso() {
-        let normalized = normalize_mmddyyyy("03/26/2026").expect("date normalization should succeed");
+        let normalized =
+            normalize_mmddyyyy("03/26/2026").expect("date normalization should succeed");
         assert_eq!(normalized, "2026-03-26");
     }
 

@@ -9,10 +9,10 @@ use app_services::messaging_service::MessagingService;
 use app_services::output_service::OutputService;
 use app_services::reporting_service::ReportingService;
 use app_services::template_service::TemplateService;
+use base64::Engine;
 use rocket::{Build, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, CorsOptions};
 use sqlx::mysql::MySqlPoolOptions;
-use base64::Engine;
 use std::env;
 use tracing_subscriber::EnvFilter;
 

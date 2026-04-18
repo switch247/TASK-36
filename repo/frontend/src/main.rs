@@ -10,75 +10,202 @@ use wasm_bindgen_futures::spawn_local;
 const API_BASE_DEFAULT: &str = "http://localhost:8000/api/v1";
 const SESSION_STORAGE_KEY: &str = "proctorops_auth_session";
 
-fn main() { dioxus::launch(App); }
+fn main() {
+    dioxus::launch(App);
+}
 
 #[derive(Routable, Clone, PartialEq, Debug)]
 enum Route {
-    #[route("/")] Login {},
-    #[route("/dashboard")] Dashboard {},
-    #[route("/candidates")] Candidates {},
-    #[route("/rooms")] Rooms {},
-    #[route("/proctors")] Proctors {},
-    #[route("/exams")] Exams {},
-    #[route("/sessions")] Sessions {},
-    #[route("/assets")] Assets {},
-    #[route("/reports")] Reports {},
-    #[route("/templates")] Templates {},
-    #[route("/outputs")] Outputs {},
-    #[route("/admin")] Admin {},
-    #[route("/:.._route")] NotFound { _route: Vec<String> },
+    #[route("/")]
+    Login {},
+    #[route("/dashboard")]
+    Dashboard {},
+    #[route("/candidates")]
+    Candidates {},
+    #[route("/rooms")]
+    Rooms {},
+    #[route("/proctors")]
+    Proctors {},
+    #[route("/exams")]
+    Exams {},
+    #[route("/sessions")]
+    Sessions {},
+    #[route("/assets")]
+    Assets {},
+    #[route("/reports")]
+    Reports {},
+    #[route("/templates")]
+    Templates {},
+    #[route("/outputs")]
+    Outputs {},
+    #[route("/admin")]
+    Admin {},
+    #[route("/:.._route")]
+    NotFound { _route: Vec<String> },
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct LoginResponse { pub session_id: String, pub jwt: String, pub session_expires_at: String, pub jwt_expires_at: String }
+pub struct LoginResponse {
+    pub session_id: String,
+    pub jwt: String,
+    pub session_expires_at: String,
+    pub jwt_expires_at: String,
+}
 #[derive(Debug, Serialize)]
-struct LoginRequest { username: String, password: String }
+struct LoginRequest {
+    username: String,
+    password: String,
+}
 #[derive(Clone, Copy)]
-struct AuthCtx { session: Signal<Option<LoginResponse>> }
+struct AuthCtx {
+    session: Signal<Option<LoginResponse>>,
+}
 #[derive(Clone, PartialEq)]
-pub enum ToastKind { Success, Error, Info }
+pub enum ToastKind {
+    Success,
+    Error,
+    Info,
+}
 #[derive(Clone, PartialEq)]
-struct Toast { id: i64, text: String, kind: ToastKind }
+struct Toast {
+    id: i64,
+    text: String,
+    kind: ToastKind,
+}
 #[derive(Clone, Copy)]
-struct ToastCtx { toast: Signal<Option<Toast>> }
+struct ToastCtx {
+    toast: Signal<Option<Toast>>,
+}
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct DashboardSummary { pub total_candidates: i64, pub total_rooms: i64, pub total_sessions_this_week: i64, pub seat_utilization_count: usize, pub near_expiry_count: usize, pub incident_rate_count: usize, pub upcoming_sessions: Vec<UpcomingSession>, pub recent_outputs: Vec<RecentOutput> }
+pub struct DashboardSummary {
+    pub total_candidates: i64,
+    pub total_rooms: i64,
+    pub total_sessions_this_week: i64,
+    pub seat_utilization_count: usize,
+    pub near_expiry_count: usize,
+    pub incident_rate_count: usize,
+    pub upcoming_sessions: Vec<UpcomingSession>,
+    pub recent_outputs: Vec<RecentOutput>,
+}
 #[derive(Debug, Deserialize, Clone, Default)]
-struct LegacyDashboardSummary { seat_utilization_count: usize, near_expiry_count: usize, incident_rate_count: usize }
+struct LegacyDashboardSummary {
+    seat_utilization_count: usize,
+    near_expiry_count: usize,
+    incident_rate_count: usize,
+}
 #[derive(Debug, Deserialize, Clone)]
-pub struct UpcomingSession { pub id: String, pub template_name: String, pub status: String, pub starts_at: String }
+pub struct UpcomingSession {
+    pub id: String,
+    pub template_name: String,
+    pub status: String,
+    pub starts_at: String,
+}
 #[derive(Debug, Deserialize, Clone)]
-pub struct RecentOutput { pub id: String, pub output_type: String, pub mode: String, pub created_at: String }
+pub struct RecentOutput {
+    pub id: String,
+    pub output_type: String,
+    pub mode: String,
+    pub created_at: String,
+}
 #[derive(Debug, Deserialize, Clone)]
-pub struct OutputRow { pub id: String, pub session_id: String, pub output_type: String, pub mode: String, pub created_at: String }
+pub struct OutputRow {
+    pub id: String,
+    pub session_id: String,
+    pub output_type: String,
+    pub mode: String,
+    pub created_at: String,
+}
 #[derive(Debug, Deserialize, Clone)]
-pub struct CandidateRow { pub id: String, pub scanned_barcode: String, pub national_id: String }
+pub struct CandidateRow {
+    pub id: String,
+    pub scanned_barcode: String,
+    pub national_id: String,
+}
 #[derive(Debug, Deserialize, Clone)]
-pub struct RoomRow { pub id: String, pub capacity: i32, pub location: String }
+pub struct RoomRow {
+    pub id: String,
+    pub capacity: i32,
+    pub location: String,
+}
 #[derive(Debug, Deserialize, Clone)]
-pub struct SessionRow { pub id: String, pub template_name: String, pub status: String, pub duration_minutes: i32, pub starts_at: Option<String> }
+pub struct SessionRow {
+    pub id: String,
+    pub template_name: String,
+    pub status: String,
+    pub duration_minutes: i32,
+    pub starts_at: Option<String>,
+}
 #[derive(Debug, Deserialize, Clone)]
-pub struct AssetRow { pub id: String, pub booklet_code: String, pub tracking_status: String, pub incident_count: i32 }
+pub struct AssetRow {
+    pub id: String,
+    pub booklet_code: String,
+    pub tracking_status: String,
+    pub incident_count: i32,
+}
 #[derive(Debug, Deserialize, Clone)]
-pub struct IncidentRow { pub session_id: String, pub avg_incidents: f64 }
+pub struct IncidentRow {
+    pub session_id: String,
+    pub avg_incidents: f64,
+}
 #[derive(Debug, Deserialize, Clone)]
-pub struct ReturnRateRow { pub session_id: String, pub total_assets: i64, pub returned_assets: i64, pub return_rate_pct: f64 }
+pub struct ReturnRateRow {
+    pub session_id: String,
+    pub total_assets: i64,
+    pub returned_assets: i64,
+    pub return_rate_pct: f64,
+}
 #[derive(Debug, Deserialize, Clone)]
-pub struct MaterialInventoryRow { pub asset_id: String, pub booklet_code: String, pub tracking_status: String, pub session_id: String, pub expires_on: Option<String>, pub incident_count: i32 }
+pub struct MaterialInventoryRow {
+    pub asset_id: String,
+    pub booklet_code: String,
+    pub tracking_status: String,
+    pub session_id: String,
+    pub expires_on: Option<String>,
+    pub incident_count: i32,
+}
 #[derive(Debug, Deserialize, Clone)]
-pub struct AlertRow { pub alert_type: String, pub severity: String, pub session_id: Option<String>, pub asset_id: Option<String>, pub message: String }
+pub struct AlertRow {
+    pub alert_type: String,
+    pub severity: String,
+    pub session_id: Option<String>,
+    pub asset_id: Option<String>,
+    pub message: String,
+}
 #[derive(Debug, Deserialize, Clone)]
-pub struct UserRow { pub username: String, pub role: String }
+pub struct UserRow {
+    pub username: String,
+    pub role: String,
+}
 #[derive(Debug, Deserialize, Clone)]
-pub struct TemplateRow { pub template_id: String, pub version_no: i32, pub locked_for_final_print: bool, pub created_at: String }
+pub struct TemplateRow {
+    pub template_id: String,
+    pub version_no: i32,
+    pub locked_for_final_print: bool,
+    pub created_at: String,
+}
 
 #[derive(Debug, Serialize)]
-struct CreateCandidateRequest { candidate_id: String, date_of_birth: String, national_id: String, scanned_barcode: String, metadata_json: String, template_id: Option<String> }
+struct CreateCandidateRequest {
+    candidate_id: String,
+    date_of_birth: String,
+    national_id: String,
+    scanned_barcode: String,
+    metadata_json: String,
+    template_id: Option<String>,
+}
 #[derive(Debug, Serialize)]
-struct CreateRoomRequest { id: String, capacity: i32, location: String, template_id: Option<String> }
+struct CreateRoomRequest {
+    id: String,
+    capacity: i32,
+    location: String,
+    template_id: Option<String>,
+}
 #[derive(Debug, Serialize)]
-struct ScanReq { code: String, intent: String }
+struct ScanReq {
+    code: String,
+    intent: String,
+}
 #[derive(Debug, Deserialize)]
 pub struct ScanResp {
     pub code: String,
@@ -89,7 +216,12 @@ pub struct ScanResp {
     pub message: String,
 }
 #[derive(Debug, Serialize)]
-struct CreateUserRequest { username: String, password: String, role: String, template_id: Option<String> }
+struct CreateUserRequest {
+    username: String,
+    password: String,
+    role: String,
+    template_id: Option<String>,
+}
 #[derive(Debug, Serialize)]
 struct CreateSessionRequest {
     id: String,
@@ -100,9 +232,18 @@ struct CreateSessionRequest {
     ends_at: String,
 }
 #[derive(Debug, Serialize)]
-struct OutputReq { session_id: String, mode: String, output_type: String }
+struct OutputReq {
+    session_id: String,
+    mode: String,
+    output_type: String,
+}
 #[derive(Debug, Serialize)]
-struct TemplateReq { template_id: String, version_no: i32, snapshot: serde_json::Value, lock_for_final_print: bool }
+struct TemplateReq {
+    template_id: String,
+    version_no: i32,
+    snapshot: serde_json::Value,
+    lock_for_final_print: bool,
+}
 #[derive(Debug, Serialize)]
 struct AttachmentUploadReq {
     record_type: String,
@@ -167,7 +308,9 @@ fn App() -> Element {
             let mut sig = toast;
             spawn_local(async move {
                 sleep(Duration::from_secs(5)).await;
-                if sig().as_ref().map(|x| x.id) == Some(t.id) { sig.set(None); }
+                if sig().as_ref().map(|x| x.id) == Some(t.id) {
+                    sig.set(None);
+                }
             });
         }
     });
@@ -226,7 +369,9 @@ fn require_auth() -> Option<LoginResponse> {
 
 #[component]
 fn Dashboard() -> Element {
-    let Some(sess) = require_auth() else { return rsx! { div { class: "p-6", "Redirecting..." } }; };
+    let Some(sess) = require_auth() else {
+        return rsx! { div { class: "p-6", "Redirecting..." } };
+    };
     let toast_ctx = use_context::<ToastCtx>();
     let mut loading = use_signal(|| true);
     let mut loaded = use_signal(|| false);
@@ -234,22 +379,32 @@ fn Dashboard() -> Element {
     if !loaded() {
         loaded.set(true);
         let fetch_sess = sess.clone();
-        let mut l = loading; let mut s = summary;
+        let mut l = loading;
+        let mut s = summary;
         spawn_local(async move {
-            match get_json::<LegacyDashboardSummary>("/reports/dashboard", Some(&fetch_sess)).await {
+            match get_json::<LegacyDashboardSummary>("/reports/dashboard", Some(&fetch_sess)).await
+            {
                 Ok(legacy) => {
-                    let candidates = get_json::<Vec<CandidateRow>>("/candidates?page=1&limit=200", Some(&fetch_sess))
-                        .await
-                        .unwrap_or_default();
-                    let rooms = get_json::<Vec<RoomRow>>("/rooms?page=1&limit=200", Some(&fetch_sess))
-                        .await
-                        .unwrap_or_default();
-                    let sessions = get_json::<Vec<SessionRow>>("/sessions?page=1&limit=200", Some(&fetch_sess))
-                        .await
-                        .unwrap_or_default();
-                    let outputs = get_json::<Vec<OutputRow>>("/outputs?page=1&limit=200", Some(&fetch_sess))
-                        .await
-                        .unwrap_or_default();
+                    let candidates = get_json::<Vec<CandidateRow>>(
+                        "/candidates?page=1&limit=200",
+                        Some(&fetch_sess),
+                    )
+                    .await
+                    .unwrap_or_default();
+                    let rooms =
+                        get_json::<Vec<RoomRow>>("/rooms?page=1&limit=200", Some(&fetch_sess))
+                            .await
+                            .unwrap_or_default();
+                    let sessions = get_json::<Vec<SessionRow>>(
+                        "/sessions?page=1&limit=200",
+                        Some(&fetch_sess),
+                    )
+                    .await
+                    .unwrap_or_default();
+                    let outputs =
+                        get_json::<Vec<OutputRow>>("/outputs?page=1&limit=200", Some(&fetch_sess))
+                            .await
+                            .unwrap_or_default();
 
                     s.set(DashboardSummary {
                         total_candidates: candidates.len() as i64,
@@ -282,13 +437,21 @@ fn Dashboard() -> Element {
                 }
                 Err(_) => {
                     s.set(DashboardSummary::default());
-                    push_toast(toast_ctx, "Dashboard has no report data yet", ToastKind::Info);
-                },
+                    push_toast(
+                        toast_ctx,
+                        "Dashboard has no report data yet",
+                        ToastKind::Info,
+                    );
+                }
             }
             l.set(false);
         });
     }
-    let content = if loading() { spinner() } else { dashboard_view(summary()) };
+    let content = if loading() {
+        spinner()
+    } else {
+        dashboard_view(summary())
+    };
     rsx! { Shell { title: "Dashboard", active: Route::Dashboard {}, {content} } }
 }
 
@@ -337,23 +500,66 @@ pub fn trend_points(s: &DashboardSummary) -> String {
     pts.join(" ")
 }
 
-#[component] fn Candidates() -> Element { candidates_page() }
-#[component] fn Rooms() -> Element { rooms_page() }
-#[component] fn Proctors() -> Element { proctors_page() }
-#[component] fn Exams() -> Element { exams_page() }
-#[component] fn Sessions() -> Element { list_page_sessions() }
-#[component] fn Assets() -> Element { list_page_assets() }
-#[component] fn Reports() -> Element { reports_page() }
-#[component] fn Templates() -> Element { templates_page() }
-#[component] fn Outputs() -> Element { outputs_page() }
-#[component] fn Admin() -> Element { admin_page() }
-#[component] fn NotFound(_route: Vec<String>) -> Element { rsx! { div { class: "p-8", Link { to: Route::Login {}, "Back" } } } }
+#[component]
+fn Candidates() -> Element {
+    candidates_page()
+}
+#[component]
+fn Rooms() -> Element {
+    rooms_page()
+}
+#[component]
+fn Proctors() -> Element {
+    proctors_page()
+}
+#[component]
+fn Exams() -> Element {
+    exams_page()
+}
+#[component]
+fn Sessions() -> Element {
+    list_page_sessions()
+}
+#[component]
+fn Assets() -> Element {
+    list_page_assets()
+}
+#[component]
+fn Reports() -> Element {
+    reports_page()
+}
+#[component]
+fn Templates() -> Element {
+    templates_page()
+}
+#[component]
+fn Outputs() -> Element {
+    outputs_page()
+}
+#[component]
+fn Admin() -> Element {
+    admin_page()
+}
+#[component]
+fn NotFound(_route: Vec<String>) -> Element {
+    rsx! { div { class: "p-8", Link { to: Route::Login {}, "Back" } } }
+}
 
 fn candidates_page() -> Element {
-    let Some(sess) = require_auth() else { return spinner(); };
+    let Some(sess) = require_auth() else {
+        return spinner();
+    };
     let toast_ctx = use_context::<ToastCtx>();
-    let mut loading = use_signal(|| true); let mut loaded = use_signal(|| false); let mut rows = use_signal(Vec::<CandidateRow>::new); let mut room_options = use_signal(Vec::<RoomRow>::new);
-    let mut dob = use_signal(String::new); let mut nid = use_signal(String::new); let mut bar = use_signal(String::new); let mut name = use_signal(String::new); let mut room_id = use_signal(String::new); let mut template_id = use_signal(|| "candidate-registration".to_string());
+    let mut loading = use_signal(|| true);
+    let mut loaded = use_signal(|| false);
+    let mut rows = use_signal(Vec::<CandidateRow>::new);
+    let mut room_options = use_signal(Vec::<RoomRow>::new);
+    let mut dob = use_signal(String::new);
+    let mut nid = use_signal(String::new);
+    let mut bar = use_signal(String::new);
+    let mut name = use_signal(String::new);
+    let mut room_id = use_signal(String::new);
+    let mut template_id = use_signal(|| "candidate-registration".to_string());
     if !loaded() {
         loaded.set(true);
         let fetch_sess = sess.clone();
@@ -361,17 +567,25 @@ fn candidates_page() -> Element {
         let mut r = rows;
         let mut ro = room_options;
         spawn_local(async move {
-            match get_json::<Vec<CandidateRow>>("/candidates?page=1&limit=50", Some(&fetch_sess)).await {
+            match get_json::<Vec<CandidateRow>>("/candidates?page=1&limit=50", Some(&fetch_sess))
+                .await
+            {
                 Ok(v) => r.set(v),
                 Err(e) => push_toast(toast_ctx, e, ToastKind::Error),
             }
-            if let Ok(v) = get_json::<Vec<RoomRow>>("/rooms?page=1&limit=200", Some(&fetch_sess)).await {
+            if let Ok(v) =
+                get_json::<Vec<RoomRow>>("/rooms?page=1&limit=200", Some(&fetch_sess)).await
+            {
                 ro.set(v);
             }
             l.set(false);
         });
     }
-    let list_content = if loading() { spinner() } else { table_candidates(rows()) };
+    let list_content = if loading() {
+        spinner()
+    } else {
+        table_candidates(rows())
+    };
     rsx! { Shell { title: "Candidates", active: Route::Candidates {},
         div { class: "bg-white border rounded p-3",
             h3 { class: "font-bold", "Create Candidate" }
@@ -438,12 +652,34 @@ fn candidates_page() -> Element {
 }
 
 fn rooms_page() -> Element {
-    let Some(sess) = require_auth() else { return spinner(); };
+    let Some(sess) = require_auth() else {
+        return spinner();
+    };
     let toast_ctx = use_context::<ToastCtx>();
-    let mut loading = use_signal(|| true); let mut loaded = use_signal(|| false); let mut rows = use_signal(Vec::<RoomRow>::new);
-    let mut cap = use_signal(String::new); let mut loc = use_signal(String::new); let mut template_id = use_signal(|| "room-config".to_string());
-    if !loaded() { loaded.set(true); let fetch_sess = sess.clone(); let mut l=loading; let mut r=rows; spawn_local(async move { match get_json::<Vec<RoomRow>>("/rooms?page=1&limit=50", Some(&fetch_sess)).await { Ok(v)=>r.set(v), Err(e)=>push_toast(toast_ctx, e, ToastKind::Error)} l.set(false);}); }
-    let list_content = if loading() { spinner() } else { table_rooms(rows()) };
+    let mut loading = use_signal(|| true);
+    let mut loaded = use_signal(|| false);
+    let mut rows = use_signal(Vec::<RoomRow>::new);
+    let mut cap = use_signal(String::new);
+    let mut loc = use_signal(String::new);
+    let mut template_id = use_signal(|| "room-config".to_string());
+    if !loaded() {
+        loaded.set(true);
+        let fetch_sess = sess.clone();
+        let mut l = loading;
+        let mut r = rows;
+        spawn_local(async move {
+            match get_json::<Vec<RoomRow>>("/rooms?page=1&limit=50", Some(&fetch_sess)).await {
+                Ok(v) => r.set(v),
+                Err(e) => push_toast(toast_ctx, e, ToastKind::Error),
+            }
+            l.set(false);
+        });
+    }
+    let list_content = if loading() {
+        spinner()
+    } else {
+        table_rooms(rows())
+    };
     rsx! { Shell { title: "Rooms", active: Route::Rooms {},
         div { class: "bg-white border rounded p-3",
             h3 { class: "font-bold", "Create Room" }
@@ -471,7 +707,9 @@ fn rooms_page() -> Element {
 }
 
 fn proctors_page() -> Element {
-    let Some(sess) = require_auth() else { return spinner(); };
+    let Some(sess) = require_auth() else {
+        return spinner();
+    };
     let toast_ctx = use_context::<ToastCtx>();
     let mut loading = use_signal(|| true);
     let mut loaded = use_signal(|| false);
@@ -491,7 +729,11 @@ fn proctors_page() -> Element {
             l.set(false);
         });
     }
-    let list_content = if loading() { spinner() } else { table_users(users()) };
+    let list_content = if loading() {
+        spinner()
+    } else {
+        table_users(users())
+    };
     rsx! { Shell { title: "Proctors", active: Route::Proctors {},
         div { class: "bg-white border rounded p-3",
             h3 { class: "font-bold", "Create Proctor (Template: proctor-profile)" }
@@ -523,7 +765,9 @@ fn proctors_page() -> Element {
 }
 
 fn exams_page() -> Element {
-    let Some(sess) = require_auth() else { return spinner(); };
+    let Some(sess) = require_auth() else {
+        return spinner();
+    };
     let toast_ctx = use_context::<ToastCtx>();
     let mut loading = use_signal(|| true);
     let mut loaded = use_signal(|| false);
@@ -538,14 +782,19 @@ fn exams_page() -> Element {
         let mut l = loading;
         let mut r = rows;
         spawn_local(async move {
-            match get_json::<Vec<SessionRow>>("/sessions?page=1&limit=50", Some(&fetch_sess)).await {
+            match get_json::<Vec<SessionRow>>("/sessions?page=1&limit=50", Some(&fetch_sess)).await
+            {
                 Ok(v) => r.set(v),
                 Err(e) => push_toast(toast_ctx, e, ToastKind::Error),
             }
             l.set(false);
         });
     }
-    let list_content = if loading() { spinner() } else { table_sessions(rows()) };
+    let list_content = if loading() {
+        spinner()
+    } else {
+        table_sessions(rows())
+    };
     rsx! { Shell { title: "Exams", active: Route::Exams {},
         div { class: "bg-white border rounded p-3",
             h3 { class: "font-bold", "Create Exam Session (Template-driven)" }
@@ -581,11 +830,34 @@ fn exams_page() -> Element {
     } }
 }
 fn list_page_sessions() -> Element {
-    let Some(sess) = require_auth() else { return spinner(); };
+    let Some(sess) = require_auth() else {
+        return spinner();
+    };
     let toast_ctx = use_context::<ToastCtx>();
-    let mut loading = use_signal(|| true); let mut loaded = use_signal(|| false); let mut rows = use_signal(Vec::<SessionRow>::new); let mut code = use_signal(String::new); let mut scan_intent = use_signal(|| "candidate_lookup".to_string());
-    if !loaded() { loaded.set(true); let fetch_sess = sess.clone(); let mut l=loading; let mut r=rows; spawn_local(async move { match get_json::<Vec<SessionRow>>("/sessions?page=1&limit=50", Some(&fetch_sess)).await { Ok(v)=>r.set(v), Err(e)=>push_toast(toast_ctx, e, ToastKind::Error)} l.set(false);}); }
-    let list_content = if loading() { spinner() } else { table_sessions(rows()) };
+    let mut loading = use_signal(|| true);
+    let mut loaded = use_signal(|| false);
+    let mut rows = use_signal(Vec::<SessionRow>::new);
+    let mut code = use_signal(String::new);
+    let mut scan_intent = use_signal(|| "candidate_lookup".to_string());
+    if !loaded() {
+        loaded.set(true);
+        let fetch_sess = sess.clone();
+        let mut l = loading;
+        let mut r = rows;
+        spawn_local(async move {
+            match get_json::<Vec<SessionRow>>("/sessions?page=1&limit=50", Some(&fetch_sess)).await
+            {
+                Ok(v) => r.set(v),
+                Err(e) => push_toast(toast_ctx, e, ToastKind::Error),
+            }
+            l.set(false);
+        });
+    }
+    let list_content = if loading() {
+        spinner()
+    } else {
+        table_sessions(rows())
+    };
     rsx! { Shell { title: "Sessions", active: Route::Sessions {}, {list_content}
         div { class: "mt-3 bg-white border rounded p-3", h3 { class: "font-bold", "QR / Barcode Capture" }
             input { class: "mt-2 border rounded px-3 py-2 mr-2", placeholder: "Scan or enter code", value: "{code}", oninput: move |e| code.set(e.value()) }
@@ -600,16 +872,38 @@ fn list_page_sessions() -> Element {
 }
 
 fn list_page_assets() -> Element {
-    let Some(sess) = require_auth() else { return spinner(); };
+    let Some(sess) = require_auth() else {
+        return spinner();
+    };
     let toast_ctx = use_context::<ToastCtx>();
-    let mut loading = use_signal(|| true); let mut loaded = use_signal(|| false); let mut rows = use_signal(Vec::<AssetRow>::new);
-    if !loaded() { loaded.set(true); let fetch_sess = sess.clone(); let mut l=loading; let mut r=rows; spawn_local(async move { match get_json::<Vec<AssetRow>>("/assets?page=1&limit=50", Some(&fetch_sess)).await { Ok(v)=>r.set(v), Err(e)=>push_toast(toast_ctx, e, ToastKind::Error)} l.set(false);}); }
-    let list_content = if loading() { spinner() } else { table_assets(rows()) };
+    let mut loading = use_signal(|| true);
+    let mut loaded = use_signal(|| false);
+    let mut rows = use_signal(Vec::<AssetRow>::new);
+    if !loaded() {
+        loaded.set(true);
+        let fetch_sess = sess.clone();
+        let mut l = loading;
+        let mut r = rows;
+        spawn_local(async move {
+            match get_json::<Vec<AssetRow>>("/assets?page=1&limit=50", Some(&fetch_sess)).await {
+                Ok(v) => r.set(v),
+                Err(e) => push_toast(toast_ctx, e, ToastKind::Error),
+            }
+            l.set(false);
+        });
+    }
+    let list_content = if loading() {
+        spinner()
+    } else {
+        table_assets(rows())
+    };
     rsx! { Shell { title: "Assets", active: Route::Assets {}, {list_content} } }
 }
 
 fn reports_page() -> Element {
-    let Some(sess) = require_auth() else { return spinner(); };
+    let Some(sess) = require_auth() else {
+        return spinner();
+    };
     let toast_ctx = use_context::<ToastCtx>();
     let mut loading = use_signal(|| true);
     let mut loaded = use_signal(|| false);
@@ -628,19 +922,33 @@ fn reports_page() -> Element {
         let mut mr = inventory_rows;
         let mut ar = alert_rows;
         spawn_local(async move {
-            match get_json::<Vec<IncidentRow>>("/operations/incident-rates", Some(&fetch_sess)).await {
+            match get_json::<Vec<IncidentRow>>("/operations/incident-rates", Some(&fetch_sess))
+                .await
+            {
                 Ok(v) => ir.set(v),
                 Err(_) => ir.set(Vec::new()),
             }
-            match get_json::<Vec<ReturnRateRow>>("/operations/return-rates", Some(&fetch_sess)).await {
+            match get_json::<Vec<ReturnRateRow>>("/operations/return-rates", Some(&fetch_sess))
+                .await
+            {
                 Ok(v) => rr.set(v),
                 Err(_) => rr.set(Vec::new()),
             }
-            match get_json::<Vec<MaterialInventoryRow>>("/operations/materials-inventory?page=1&limit=200", Some(&fetch_sess)).await {
+            match get_json::<Vec<MaterialInventoryRow>>(
+                "/operations/materials-inventory?page=1&limit=200",
+                Some(&fetch_sess),
+            )
+            .await
+            {
                 Ok(v) => mr.set(v),
                 Err(_) => mr.set(Vec::new()),
             }
-            match get_json::<Vec<AlertRow>>("/operations/alerts?within_days=30&page=1&limit=200", Some(&fetch_sess)).await {
+            match get_json::<Vec<AlertRow>>(
+                "/operations/alerts?within_days=30&page=1&limit=200",
+                Some(&fetch_sess),
+            )
+            .await
+            {
                 Ok(v) => ar.set(v),
                 Err(_) => ar.set(Vec::new()),
             }
@@ -759,14 +1067,36 @@ fn reports_page() -> Element {
 }
 
 fn templates_page() -> Element {
-    let Some(sess) = require_auth() else { return spinner(); };
+    let Some(sess) = require_auth() else {
+        return spinner();
+    };
     let toast_ctx = use_context::<ToastCtx>();
-    let mut loading = use_signal(|| true); let mut loaded = use_signal(|| false); let mut rows = use_signal(Vec::<TemplateRow>::new);
+    let mut loading = use_signal(|| true);
+    let mut loaded = use_signal(|| false);
+    let mut rows = use_signal(Vec::<TemplateRow>::new);
     let mut template_id = use_signal(|| "candidate-registration".to_string());
     let mut ver = use_signal(String::new);
-    let mut snapshot_json = use_signal(|| "{\"rules\":{\"date_of_birth\":[\"Required\"],\"national_id\":[\"Required\"],\"scanned_barcode\":[\"Required\"],\"name\":[\"Required\"]}}".to_string());
-    if !loaded() { loaded.set(true); let fetch_sess = sess.clone(); let mut l=loading; let mut r=rows; spawn_local(async move { match get_json::<Vec<TemplateRow>>("/templates", Some(&fetch_sess)).await { Ok(v)=>r.set(v), Err(e)=>push_toast(toast_ctx, e, ToastKind::Error)} l.set(false);}); }
-    let list_content = if loading() { spinner() } else { table_templates(rows()) };
+    let mut snapshot_json = use_signal(|| {
+        "{\"rules\":{\"date_of_birth\":[\"Required\"],\"national_id\":[\"Required\"],\"scanned_barcode\":[\"Required\"],\"name\":[\"Required\"]}}".to_string()
+    });
+    if !loaded() {
+        loaded.set(true);
+        let fetch_sess = sess.clone();
+        let mut l = loading;
+        let mut r = rows;
+        spawn_local(async move {
+            match get_json::<Vec<TemplateRow>>("/templates", Some(&fetch_sess)).await {
+                Ok(v) => r.set(v),
+                Err(e) => push_toast(toast_ctx, e, ToastKind::Error),
+            }
+            l.set(false);
+        });
+    }
+    let list_content = if loading() {
+        spinner()
+    } else {
+        table_templates(rows())
+    };
     rsx! { Shell { title: "Templates", active: Route::Templates {},
         div { class: "bg-white border rounded p-3",
             input { class: "border rounded px-3 py-2 mr-2", placeholder: "Template ID", value: "{template_id}", oninput: move |e| template_id.set(e.value()) }
@@ -803,14 +1133,18 @@ fn templates_page() -> Element {
 }
 
 fn outputs_page() -> Element {
-    let Some(sess) = require_auth() else { return spinner(); };
+    let Some(sess) = require_auth() else {
+        return spinner();
+    };
     let toast_ctx = use_context::<ToastCtx>();
     let mut loading = use_signal(|| true);
     let mut loaded = use_signal(|| false);
     let mut rows = use_signal(Vec::<OutputRow>::new);
     let mut attachments = use_signal(Vec::<AttachmentRow>::new);
     let mut session_options = use_signal(Vec::<SessionRow>::new);
-    let mut sid = use_signal(String::new); let mut otype = use_signal(String::new); let mut mode = use_signal(String::new);
+    let mut sid = use_signal(String::new);
+    let mut otype = use_signal(String::new);
+    let mut mode = use_signal(String::new);
     let mut rec_type = use_signal(|| "candidate".to_string());
     let mut rec_id = use_signal(String::new);
     let mut file_name = use_signal(String::new);
@@ -831,13 +1165,19 @@ fn outputs_page() -> Element {
             if let Ok(v) = get_json::<Vec<AttachmentRow>>("/attachments", Some(&fetch_sess)).await {
                 at.set(v);
             }
-            if let Ok(v) = get_json::<Vec<SessionRow>>("/sessions?page=1&limit=200", Some(&fetch_sess)).await {
+            if let Ok(v) =
+                get_json::<Vec<SessionRow>>("/sessions?page=1&limit=200", Some(&fetch_sess)).await
+            {
                 so.set(v);
             }
             l.set(false);
         });
     }
-    let list_content = if loading() { spinner() } else { table_outputs(rows()) };
+    let list_content = if loading() {
+        spinner()
+    } else {
+        table_outputs(rows())
+    };
     let sess_for_output = sess.clone();
     let sess_for_attachment = sess.clone();
     rsx! { Shell { title: "Outputs", active: Route::Outputs {},
@@ -920,12 +1260,34 @@ fn outputs_page() -> Element {
 }
 
 fn admin_page() -> Element {
-    let Some(sess) = require_auth() else { return spinner(); };
+    let Some(sess) = require_auth() else {
+        return spinner();
+    };
     let toast_ctx = use_context::<ToastCtx>();
-    let mut loading = use_signal(|| true); let mut loaded = use_signal(|| false); let mut users = use_signal(Vec::<UserRow>::new);
-    let mut user = use_signal(String::new); let mut pass = use_signal(String::new); let mut role = use_signal(String::new);
-    if !loaded() { loaded.set(true); let fetch_sess = sess.clone(); let mut l=loading; let mut u=users; spawn_local(async move { match get_json::<Vec<UserRow>>("/users", Some(&fetch_sess)).await { Ok(v)=>u.set(v), Err(e)=>push_toast(toast_ctx, e, ToastKind::Error)} l.set(false);}); }
-    let list_content = if loading() { spinner() } else { table_users(users()) };
+    let mut loading = use_signal(|| true);
+    let mut loaded = use_signal(|| false);
+    let mut users = use_signal(Vec::<UserRow>::new);
+    let mut user = use_signal(String::new);
+    let mut pass = use_signal(String::new);
+    let mut role = use_signal(String::new);
+    if !loaded() {
+        loaded.set(true);
+        let fetch_sess = sess.clone();
+        let mut l = loading;
+        let mut u = users;
+        spawn_local(async move {
+            match get_json::<Vec<UserRow>>("/users", Some(&fetch_sess)).await {
+                Ok(v) => u.set(v),
+                Err(e) => push_toast(toast_ctx, e, ToastKind::Error),
+            }
+            l.set(false);
+        });
+    }
+    let list_content = if loading() {
+        spinner()
+    } else {
+        table_users(users())
+    };
     rsx! { Shell { title: "Admin", active: Route::Admin {},
         div { class: "bg-white border rounded p-3",
             input { class: "border rounded px-3 py-2 mr-2", placeholder: "Username", value: "{user}", oninput: move |e| user.set(e.value()) }
@@ -1012,10 +1374,27 @@ pub fn jwt_role(session: &LoginResponse) -> String {
         .to_string()
 }
 
-fn menu(route: Route, active: bool, label: &'static str) -> Element { let cls = if active { "block rounded bg-blue-600 px-3 py-2 mb-1" } else { "block rounded hover:bg-slate-800 px-3 py-2 mb-1" }; rsx!{ Link { class: "{cls}", to: route, "{label}" } } }
-pub fn metric(title: &'static str, value: String) -> Element { rsx!{ div { class: "bg-white border rounded p-3", p { class: "text-sm text-slate-500", "{title}" } p { class: "text-xl font-bold", "{value}" } } } }
-pub fn spinner() -> Element { rsx!{ div { class: "bg-white border rounded p-3 text-slate-600", "Loading..." } } }
-pub fn toast_bg(k: &ToastKind) -> &'static str { match k { ToastKind::Success => "bg-emerald-600", ToastKind::Error => "bg-rose-600", ToastKind::Info => "bg-slate-700" } }
+fn menu(route: Route, active: bool, label: &'static str) -> Element {
+    let cls = if active {
+        "block rounded bg-blue-600 px-3 py-2 mb-1"
+    } else {
+        "block rounded hover:bg-slate-800 px-3 py-2 mb-1"
+    };
+    rsx! { Link { class: "{cls}", to: route, "{label}" } }
+}
+pub fn metric(title: &'static str, value: String) -> Element {
+    rsx! { div { class: "bg-white border rounded p-3", p { class: "text-sm text-slate-500", "{title}" } p { class: "text-xl font-bold", "{value}" } } }
+}
+pub fn spinner() -> Element {
+    rsx! { div { class: "bg-white border rounded p-3 text-slate-600", "Loading..." } }
+}
+pub fn toast_bg(k: &ToastKind) -> &'static str {
+    match k {
+        ToastKind::Success => "bg-emerald-600",
+        ToastKind::Error => "bg-rose-600",
+        ToastKind::Info => "bg-slate-700",
+    }
+}
 
 fn format_display_datetime(raw: &str) -> String {
     let trimmed = raw.trim();
@@ -1110,34 +1489,70 @@ fn format_mmddyyyy_hhmm_ampm(year: i32, month: u32, day: u32, hour24: u32, minut
 }
 
 fn push_toast(mut ctx: ToastCtx, msg: impl Into<String>, kind: ToastKind) {
-    ctx.toast
-        .set(Some(Toast { id: js_sys::Date::now() as i64, text: msg.into(), kind }));
+    ctx.toast.set(Some(Toast {
+        id: js_sys::Date::now() as i64,
+        text: msg.into(),
+        kind,
+    }));
 }
 
-async fn get_json<T: for<'de> Deserialize<'de>>(path: &str, auth: Option<&LoginResponse>) -> Result<T, String> {
+async fn get_json<T: for<'de> Deserialize<'de>>(
+    path: &str,
+    auth: Option<&LoginResponse>,
+) -> Result<T, String> {
     let mut req = Request::get(&format!("{}{path}", api_base()));
-    if let Some(a) = auth { req = req.header("Authorization", &format!("Bearer {}", a.jwt)).header("x-session-id", &a.session_id); }
+    if let Some(a) = auth {
+        req = req
+            .header("Authorization", &format!("Bearer {}", a.jwt))
+            .header("x-session-id", &a.session_id);
+    }
     let resp = req.send().await.map_err(|e| e.to_string())?;
-    if !resp.ok() { return Err(format!("HTTP {}", resp.status())); }
+    if !resp.ok() {
+        return Err(format!("HTTP {}", resp.status()));
+    }
     resp.json::<T>().await.map_err(|e| e.to_string())
 }
 
-async fn post_empty<T: Serialize>(path: &str, payload: &T, auth: Option<&LoginResponse>) -> Result<(), String> {
-    let mut req = Request::post(&format!("{}{path}", api_base())).header("Content-Type", "application/json");
-    if let Some(a) = auth { req = req.header("Authorization", &format!("Bearer {}", a.jwt)).header("x-session-id", &a.session_id); }
+async fn post_empty<T: Serialize>(
+    path: &str,
+    payload: &T,
+    auth: Option<&LoginResponse>,
+) -> Result<(), String> {
+    let mut req =
+        Request::post(&format!("{}{path}", api_base())).header("Content-Type", "application/json");
+    if let Some(a) = auth {
+        req = req
+            .header("Authorization", &format!("Bearer {}", a.jwt))
+            .header("x-session-id", &a.session_id);
+    }
     let body = serde_json::to_string(payload).map_err(|e| e.to_string())?;
     let req = req.body(body).map_err(|e| e.to_string())?;
     let resp = req.send().await.map_err(|e| e.to_string())?;
-    if resp.ok() { Ok(()) } else { Err(format!("HTTP {}", resp.status())) }
+    if resp.ok() {
+        Ok(())
+    } else {
+        Err(format!("HTTP {}", resp.status()))
+    }
 }
 
-async fn post_json<TReq: Serialize, TResp: for<'de> Deserialize<'de>>(path: &str, payload: &TReq, auth: Option<&LoginResponse>) -> Result<TResp, String> {
-    let mut req = Request::post(&format!("{}{path}", api_base())).header("Content-Type", "application/json");
-    if let Some(a) = auth { req = req.header("Authorization", &format!("Bearer {}", a.jwt)).header("x-session-id", &a.session_id); }
+async fn post_json<TReq: Serialize, TResp: for<'de> Deserialize<'de>>(
+    path: &str,
+    payload: &TReq,
+    auth: Option<&LoginResponse>,
+) -> Result<TResp, String> {
+    let mut req =
+        Request::post(&format!("{}{path}", api_base())).header("Content-Type", "application/json");
+    if let Some(a) = auth {
+        req = req
+            .header("Authorization", &format!("Bearer {}", a.jwt))
+            .header("x-session-id", &a.session_id);
+    }
     let body = serde_json::to_string(payload).map_err(|e| e.to_string())?;
     let req = req.body(body).map_err(|e| e.to_string())?;
     let resp = req.send().await.map_err(|e| e.to_string())?;
-    if !resp.ok() { return Err(format!("HTTP {}", resp.status())); }
+    if !resp.ok() {
+        return Err(format!("HTTP {}", resp.status()));
+    }
     resp.json::<TResp>().await.map_err(|e| e.to_string())
 }
 
@@ -1146,8 +1561,19 @@ fn load_session() -> Option<LoginResponse> {
     let raw = storage.get_item(SESSION_STORAGE_KEY).ok().flatten()?;
     serde_json::from_str::<LoginResponse>(&raw).ok()
 }
-fn save_session(s: &LoginResponse) { if let Some(st) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) { let _ = st.set_item(SESSION_STORAGE_KEY, &serde_json::to_string(s).unwrap_or_default()); } }
-fn clear_session() { if let Some(st) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) { let _ = st.remove_item(SESSION_STORAGE_KEY); } }
+fn save_session(s: &LoginResponse) {
+    if let Some(st) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) {
+        let _ = st.set_item(
+            SESSION_STORAGE_KEY,
+            &serde_json::to_string(s).unwrap_or_default(),
+        );
+    }
+}
+fn clear_session() {
+    if let Some(st) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) {
+        let _ = st.remove_item(SESSION_STORAGE_KEY);
+    }
+}
 
 pub fn table_candidates(rows: Vec<CandidateRow>) -> Element {
     rsx! { div { class: "mt-3 bg-white border rounded p-3 overflow-auto",
@@ -1340,9 +1766,18 @@ mod tests {
 
     #[test]
     fn format_mmddyyyy_hhmm_ampm_handles_midnight_and_noon() {
-        assert_eq!(format_mmddyyyy_hhmm_ampm(2026, 3, 27, 0, 5), "03/27/2026 12:05 AM");
-        assert_eq!(format_mmddyyyy_hhmm_ampm(2026, 3, 27, 12, 0), "03/27/2026 12:00 PM");
-        assert_eq!(format_mmddyyyy_hhmm_ampm(2026, 3, 27, 13, 45), "03/27/2026 01:45 PM");
+        assert_eq!(
+            format_mmddyyyy_hhmm_ampm(2026, 3, 27, 0, 5),
+            "03/27/2026 12:05 AM"
+        );
+        assert_eq!(
+            format_mmddyyyy_hhmm_ampm(2026, 3, 27, 12, 0),
+            "03/27/2026 12:00 PM"
+        );
+        assert_eq!(
+            format_mmddyyyy_hhmm_ampm(2026, 3, 27, 13, 45),
+            "03/27/2026 01:45 PM"
+        );
     }
 
     #[test]
@@ -1350,7 +1785,10 @@ mod tests {
         // compile-time option_env! means this always returns the default unless built with API_BASE set.
         // The default points at the rocket backend.
         let base = api_base();
-        assert!(base.ends_with("/api/v1"), "api_base must end with /api/v1, got {base}");
+        assert!(
+            base.ends_with("/api/v1"),
+            "api_base must end with /api/v1, got {base}"
+        );
     }
 
     #[test]

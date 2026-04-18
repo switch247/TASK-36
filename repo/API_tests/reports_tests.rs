@@ -69,7 +69,10 @@ async fn dashboard_summary_forbidden_for_proctor() {
     assert_eq!(resp.status(), Status::Forbidden);
     let body: Value = resp.into_json().await.expect("json");
     assert_eq!(body["code"], 403);
-    assert!(body["message"].as_str().unwrap_or_default().contains("report"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("report"));
 }
 
 #[rocket::async_test]
@@ -80,7 +83,8 @@ async fn near_expiry_alerts_returns_assets_close_to_expiration() {
     seed_expiring_asset(&app.pool, &coord_id).await;
 
     let resp = attach_auth(
-        app.client.get("/api/v1/operations/near-expiry-alerts?limit=50"),
+        app.client
+            .get("/api/v1/operations/near-expiry-alerts?limit=50"),
         &headers,
     )
     .dispatch()
@@ -88,17 +92,20 @@ async fn near_expiry_alerts_returns_assets_close_to_expiration() {
     assert_eq!(resp.status(), Status::Ok);
     let rows: Vec<Value> = resp.into_json().await.expect("rows");
     assert!(rows.iter().any(|r| r["id"] == "asset-near-exp"));
-    assert!(rows
-        .iter()
-        .find(|r| r["id"] == "asset-near-exp")
-        .unwrap()["booklet_code"]
-        == "BOOK-NEAR-EXP");
+    assert!(
+        rows.iter().find(|r| r["id"] == "asset-near-exp").unwrap()["booklet_code"]
+            == "BOOK-NEAR-EXP"
+    );
 }
 
 #[rocket::async_test]
 async fn near_expiry_alerts_unauthenticated_returns_401() {
     let app = setup_app().await.expect("setup");
-    let resp = app.client.get("/api/v1/operations/near-expiry-alerts").dispatch().await;
+    let resp = app
+        .client
+        .get("/api/v1/operations/near-expiry-alerts")
+        .dispatch()
+        .await;
     assert_eq!(resp.status(), Status::Unauthorized);
     let body: Value = resp.into_json().await.expect("json");
     assert_eq!(body["code"], 401);
@@ -118,7 +125,10 @@ async fn incident_rates_returns_data_for_reporting_roles() {
     assert_eq!(resp.status(), Status::Ok);
     let rows: Vec<Value> = resp.into_json().await.expect("json");
     for row in &rows {
-        assert!(row.get("session_id").is_some(), "incident rate row missing session_id: {row}");
+        assert!(
+            row.get("session_id").is_some(),
+            "incident rate row missing session_id: {row}"
+        );
     }
 }
 
@@ -170,7 +180,9 @@ async fn incident_rates_fallback_returns_array() {
         .iter()
         .find(|row| row["session_id"] == "sess-inc-fallback")
         .expect("fallback should include seeded session");
-    let avg = target["avg_incidents"].as_f64().expect("avg_incidents as f64");
+    let avg = target["avg_incidents"]
+        .as_f64()
+        .expect("avg_incidents as f64");
     assert!(
         (avg - 2.0).abs() < f64::EPSILON,
         "expected seeded fallback average 2.0, got {avg}"
@@ -183,7 +195,14 @@ async fn return_rates_success_for_coordinator() {
     let headers = login_as(&app.client, Role::Coordinator).await;
     let coord_id = user_id_for(&app.pool, COORD_USERNAME).await;
     factory_session(&app.pool, "sess-ret", "Template A", 60, &coord_id).await;
-    factory_asset(&app.pool, "asset-ret-1", "BOOK-RET-1", "sess-ret", &coord_id).await;
+    factory_asset(
+        &app.pool,
+        "asset-ret-1",
+        "BOOK-RET-1",
+        "sess-ret",
+        &coord_id,
+    )
+    .await;
     sqlx::query("UPDATE assets SET tracking_status = 'Collected' WHERE id = 'asset-ret-1'")
         .execute(&app.pool)
         .await
@@ -205,12 +224,9 @@ async fn return_rates_forbidden_for_proctor() {
     let app = setup_app().await.expect("setup");
     let headers = login_as(&app.client, Role::Proctor).await;
 
-    let resp = attach_auth(
-        app.client.get("/api/v1/operations/return-rates"),
-        &headers,
-    )
-    .dispatch()
-    .await;
+    let resp = attach_auth(app.client.get("/api/v1/operations/return-rates"), &headers)
+        .dispatch()
+        .await;
     assert_eq!(resp.status(), Status::Forbidden);
     let body: Value = resp.into_json().await.expect("json");
     assert_eq!(body["code"], 403);
@@ -225,7 +241,8 @@ async fn materials_inventory_returns_asset_rows() {
     factory_asset(&app.pool, "asset-mat", "BOOK-MAT", "sess-mat", &coord_id).await;
 
     let resp = attach_auth(
-        app.client.get("/api/v1/operations/materials-inventory?limit=100"),
+        app.client
+            .get("/api/v1/operations/materials-inventory?limit=100"),
         &headers,
     )
     .dispatch()
@@ -241,7 +258,14 @@ async fn operations_alerts_returns_ok_with_within_days() {
     let headers = login_as(&app.client, Role::Coordinator).await;
     let coord_id = user_id_for(&app.pool, COORD_USERNAME).await;
 
-    factory_session(&app.pool, "sess-alert-low-return", "Template A", 60, &coord_id).await;
+    factory_session(
+        &app.pool,
+        "sess-alert-low-return",
+        "Template A",
+        60,
+        &coord_id,
+    )
+    .await;
     factory_asset(
         &app.pool,
         "asset-alert-low-1",
@@ -277,7 +301,8 @@ async fn operations_alerts_returns_ok_with_within_days() {
     .expect("seed alert rows");
 
     let resp = attach_auth(
-        app.client.get("/api/v1/operations/alerts?within_days=60&limit=50"),
+        app.client
+            .get("/api/v1/operations/alerts?within_days=60&limit=50"),
         &headers,
     )
     .dispatch()
@@ -292,15 +317,13 @@ async fn operations_alerts_returns_ok_with_within_days() {
     }
     assert!(
         rows.iter().any(|row| {
-            row["alert_type"] == "LowReturnRate"
-                && row["session_id"] == "sess-alert-low-return"
+            row["alert_type"] == "LowReturnRate" && row["session_id"] == "sess-alert-low-return"
         }),
         "expected a low-return-rate alert for the seeded session"
     );
     assert!(
         rows.iter().any(|row| {
-            row["alert_type"] == "HighIncident"
-                && row["asset_id"] == "asset-alert-low-2"
+            row["alert_type"] == "HighIncident" && row["asset_id"] == "asset-alert-low-2"
         }),
         "expected a high-incident alert for the seeded asset"
     );

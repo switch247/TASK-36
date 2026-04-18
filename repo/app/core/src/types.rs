@@ -1,4 +1,4 @@
-﻿use chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -20,11 +20,17 @@ impl UserRole {
     }
 
     pub fn can_view_reporting(&self) -> bool {
-        matches!(self, UserRole::Admin | UserRole::Coordinator | UserRole::Auditor)
+        matches!(
+            self,
+            UserRole::Admin | UserRole::Coordinator | UserRole::Auditor
+        )
     }
 
     pub fn can_run_prints(&self) -> bool {
-        matches!(self, UserRole::Admin | UserRole::Coordinator | UserRole::Proctor)
+        matches!(
+            self,
+            UserRole::Admin | UserRole::Coordinator | UserRole::Proctor
+        )
     }
 }
 

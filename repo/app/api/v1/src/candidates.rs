@@ -142,27 +142,47 @@ async fn parse_and_enrich_candidate_metadata(
         let value = metadata
             .get("measurement_value")
             .and_then(serde_json::Value::as_f64)
-            .ok_or_else(|| ApiError::bad_request("measurement_value is required when normalization fields are provided"))?;
+            .ok_or_else(|| {
+                ApiError::bad_request(
+                    "measurement_value is required when normalization fields are provided",
+                )
+            })?;
         let unit = metadata
             .get("measurement_unit")
             .and_then(serde_json::Value::as_str)
-            .ok_or_else(|| ApiError::bad_request("measurement_unit is required when normalization fields are provided"))?;
+            .ok_or_else(|| {
+                ApiError::bad_request(
+                    "measurement_unit is required when normalization fields are provided",
+                )
+            })?;
         let amount = metadata
             .get("amount")
             .and_then(serde_json::Value::as_f64)
-            .ok_or_else(|| ApiError::bad_request("amount is required when normalization fields are provided"))?;
+            .ok_or_else(|| {
+                ApiError::bad_request("amount is required when normalization fields are provided")
+            })?;
         let currency = metadata
             .get("currency")
             .and_then(serde_json::Value::as_str)
-            .ok_or_else(|| ApiError::bad_request("currency is required when normalization fields are provided"))?;
+            .ok_or_else(|| {
+                ApiError::bad_request("currency is required when normalization fields are provided")
+            })?;
         let fx_rate = metadata
             .get("fx_rate_to_usd")
             .and_then(serde_json::Value::as_f64)
-            .ok_or_else(|| ApiError::bad_request("fx_rate_to_usd is required when normalization fields are provided"))?;
+            .ok_or_else(|| {
+                ApiError::bad_request(
+                    "fx_rate_to_usd is required when normalization fields are provided",
+                )
+            })?;
         let effective_date = metadata
             .get("effective_date")
             .and_then(serde_json::Value::as_str)
-            .ok_or_else(|| ApiError::bad_request("effective_date is required when normalization fields are provided"))?;
+            .ok_or_else(|| {
+                ApiError::bad_request(
+                    "effective_date is required when normalization fields are provided",
+                )
+            })?;
         let norm = cleansing_service
             .normalize_record(value, unit, amount, currency, fx_rate, effective_date)
             .map_err(|_| ApiError::bad_request("failed to normalize record fields"))?;
@@ -195,7 +215,8 @@ pub async fn create_candidate(
     audit_service: &State<AuditService>,
     ctx: ApiContext,
 ) -> ApiResult<Status> {
-    RbacService::require_manage_inventory(&ctx.actor.role).map_err(|_| ApiError::forbidden("role cannot create candidate"))?;
+    RbacService::require_manage_inventory(&ctx.actor.role)
+        .map_err(|_| ApiError::forbidden("role cannot create candidate"))?;
     let user_id = actor_user_id(&ctx)?;
     let normalized_dob = candidate_service
         .normalize_dob_mmddyyyy(&payload.date_of_birth)
@@ -252,7 +273,11 @@ pub async fn create_candidate(
 
     let incoming_name = serde_json::from_str::<serde_json::Value>(&enriched_metadata_json)
         .ok()
-        .and_then(|v| v.get("name").and_then(serde_json::Value::as_str).map(str::to_string));
+        .and_then(|v| {
+            v.get("name")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_string)
+        });
     if let Some((existing_candidate_id, similarity_score)) = candidate_service
         .find_guided_merge_duplicate(
             &payload.national_id,
@@ -297,7 +322,13 @@ pub async fn create_candidate(
         .await;
 
     info!(action = "create_candidate", candidate_id = %payload.candidate_id, "candidate created");
-    audit(audit_service, &ctx, "create_candidate", "/api/v1/candidates").await;
+    audit(
+        audit_service,
+        &ctx,
+        "create_candidate",
+        "/api/v1/candidates",
+    )
+    .await;
     Ok(Status::Created)
 }
 
@@ -312,7 +343,8 @@ pub async fn list_candidates(
     sort_order: Option<String>,
     filter: Option<String>,
 ) -> ApiResult<Json<Vec<CandidateRow>>> {
-    RbacService::require_manage_inventory(&ctx.actor.role).map_err(|_| ApiError::forbidden("role cannot list candidates"))?;
+    RbacService::require_manage_inventory(&ctx.actor.role)
+        .map_err(|_| ApiError::forbidden("role cannot list candidates"))?;
     let user_id = actor_user_id(&ctx)?;
 
     let params = PaginationParams {
@@ -388,7 +420,8 @@ pub async fn get_candidate(
     audit_service: &State<AuditService>,
     ctx: ApiContext,
 ) -> ApiResult<Json<CandidateRow>> {
-    RbacService::require_manage_inventory(&ctx.actor.role).map_err(|_| ApiError::forbidden("role cannot read candidate"))?;
+    RbacService::require_manage_inventory(&ctx.actor.role)
+        .map_err(|_| ApiError::forbidden("role cannot read candidate"))?;
     let user_id = actor_user_id(&ctx)?;
 
     let row = if is_admin(&ctx) {
@@ -411,7 +444,13 @@ pub async fn get_candidate(
     };
 
     let row = row.ok_or_else(|| ApiError::not_found("candidate not found"))?;
-    audit(audit_service, &ctx, "get_candidate", "/api/v1/candidates/{id}").await;
+    audit(
+        audit_service,
+        &ctx,
+        "get_candidate",
+        "/api/v1/candidates/{id}",
+    )
+    .await;
     Ok(Json(row))
 }
 
@@ -424,7 +463,8 @@ pub async fn update_candidate(
     audit_service: &State<AuditService>,
     ctx: ApiContext,
 ) -> ApiResult<Status> {
-    RbacService::require_manage_inventory(&ctx.actor.role).map_err(|_| ApiError::forbidden("role cannot update candidate"))?;
+    RbacService::require_manage_inventory(&ctx.actor.role)
+        .map_err(|_| ApiError::forbidden("role cannot update candidate"))?;
     let user_id = actor_user_id(&ctx)?;
     let existing_metadata: Option<serde_json::Value> = if is_admin(&ctx) {
         sqlx::query_scalar("SELECT metadata FROM candidates WHERE id = ?")
@@ -440,7 +480,8 @@ pub async fn update_candidate(
             .await
             .map_err(|_| ApiError::internal("failed to read existing candidate metadata"))?
     };
-    let existing_metadata = existing_metadata.ok_or_else(|| ApiError::not_found("candidate not found"))?;
+    let existing_metadata =
+        existing_metadata.ok_or_else(|| ApiError::not_found("candidate not found"))?;
     let existing_normalized_dob = existing_metadata
         .get("cleansing")
         .and_then(|v| v.get("normalized_dob"))
@@ -488,16 +529,19 @@ pub async fn update_candidate(
         .filter(|x| !x.trim().is_empty())
         .unwrap_or("candidate-registration");
     validate_against_template_partial(pool.inner(), template_id, template_payload).await?;
-    let metadata_json = serde_json::to_string(&metadata).map_err(|_| ApiError::internal("failed to serialize candidate metadata"))?;
+    let metadata_json = serde_json::to_string(&metadata)
+        .map_err(|_| ApiError::internal("failed to serialize candidate metadata"))?;
 
     let result = if is_admin(&ctx) {
-        sqlx::query("UPDATE candidates SET scanned_barcode = ?, metadata = CAST(? AS JSON) WHERE id = ?")
-            .bind(&payload.scanned_barcode)
-            .bind(&metadata_json)
-            .bind(id)
-            .execute(pool.inner())
-            .await
-            .map_err(|_| ApiError::internal("failed to update candidate"))?
+        sqlx::query(
+            "UPDATE candidates SET scanned_barcode = ?, metadata = CAST(? AS JSON) WHERE id = ?",
+        )
+        .bind(&payload.scanned_barcode)
+        .bind(&metadata_json)
+        .bind(id)
+        .execute(pool.inner())
+        .await
+        .map_err(|_| ApiError::internal("failed to update candidate"))?
     } else {
         sqlx::query("UPDATE candidates SET scanned_barcode = ?, metadata = CAST(? AS JSON) WHERE id = ? AND created_by = ?")
             .bind(&payload.scanned_barcode)
@@ -524,7 +568,13 @@ pub async fn update_candidate(
         )
         .await;
 
-    audit(audit_service, &ctx, "update_candidate", "/api/v1/candidates/{id}").await;
+    audit(
+        audit_service,
+        &ctx,
+        "update_candidate",
+        "/api/v1/candidates/{id}",
+    )
+    .await;
     Ok(Status::Ok)
 }
 
@@ -535,7 +585,8 @@ pub async fn delete_candidate(
     audit_service: &State<AuditService>,
     ctx: ApiContext,
 ) -> ApiResult<Status> {
-    RbacService::require_manage_inventory(&ctx.actor.role).map_err(|_| ApiError::forbidden("role cannot delete candidate"))?;
+    RbacService::require_manage_inventory(&ctx.actor.role)
+        .map_err(|_| ApiError::forbidden("role cannot delete candidate"))?;
     let user_id = actor_user_id(&ctx)?;
 
     let result = if is_admin(&ctx) {
@@ -561,7 +612,13 @@ pub async fn delete_candidate(
         .record_change("candidates", id, "DELETE", None, None, user_id)
         .await;
 
-    audit(audit_service, &ctx, "delete_candidate", "/api/v1/candidates/{id}").await;
+    audit(
+        audit_service,
+        &ctx,
+        "delete_candidate",
+        "/api/v1/candidates/{id}",
+    )
+    .await;
     Ok(Status::NoContent)
 }
 
@@ -572,7 +629,8 @@ pub async fn create_merge_candidate(
     audit_service: &State<AuditService>,
     ctx: ApiContext,
 ) -> ApiResult<Status> {
-    RbacService::require_manage_inventory(&ctx.actor.role).map_err(|_| ApiError::forbidden("role cannot create merge candidate"))?;
+    RbacService::require_manage_inventory(&ctx.actor.role)
+        .map_err(|_| ApiError::forbidden("role cannot create merge candidate"))?;
     let user_id = actor_user_id(&ctx)?;
 
     sqlx::query("INSERT INTO merge_candidates (id, left_candidate_id, right_candidate_id, similarity_score, created_by) VALUES (?, ?, ?, ?, ?)")
@@ -588,7 +646,10 @@ pub async fn create_merge_candidate(
     let _ = audit_service
         .record_change(
             "merge_candidates",
-            &format!("{}:{}", payload.left_candidate_id, payload.right_candidate_id),
+            &format!(
+                "{}:{}",
+                payload.left_candidate_id, payload.right_candidate_id
+            ),
             "CREATE",
             None,
             Some(serde_json::json!({"similarity_score": payload.similarity_score})),
@@ -596,6 +657,12 @@ pub async fn create_merge_candidate(
         )
         .await;
 
-    audit(audit_service, &ctx, "create_merge_candidate", "/api/v1/candidates/merge").await;
+    audit(
+        audit_service,
+        &ctx,
+        "create_merge_candidate",
+        "/api/v1/candidates/merge",
+    )
+    .await;
     Ok(Status::Created)
 }

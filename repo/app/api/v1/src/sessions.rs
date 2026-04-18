@@ -4,10 +4,10 @@ use rocket::{delete, get, post, put, State};
 
 use sqlx::{MySql, MySqlPool, QueryBuilder};
 
+use app_core::types::UserRole;
 use app_services::audit_service::AuditService;
 use app_services::cleansing_service::CleansingService;
 use app_services::rbac_service::RbacService;
-use app_core::types::UserRole;
 
 use crate::errors::{ApiError, ApiResult};
 use crate::pagination::PaginationParams;
@@ -70,18 +70,23 @@ pub async fn create_session(
     let starts_at = parse_prompt_datetime(&payload.starts_at)?;
     let ends_at = parse_prompt_datetime(&payload.ends_at)?;
     let normalized_status = normalize_session_status(&payload.status);
-    let existing_durations: Vec<i32> = sqlx::query_scalar("SELECT duration_minutes FROM exam_sessions")
-        .fetch_all(pool.inner())
-        .await
-        .unwrap_or_default();
+    let existing_durations: Vec<i32> =
+        sqlx::query_scalar("SELECT duration_minutes FROM exam_sessions")
+            .fetch_all(pool.inner())
+            .await
+            .unwrap_or_default();
     let duration_outlier = if existing_durations.is_empty() {
         false
     } else {
-        let avg = existing_durations.iter().map(|d| *d as f64).sum::<f64>() / existing_durations.len() as f64;
+        let avg = existing_durations.iter().map(|d| *d as f64).sum::<f64>()
+            / existing_durations.len() as f64;
         (payload.duration_minutes as f64) > (avg * 2.5)
     };
     let mut template_payload = std::collections::HashMap::new();
-    template_payload.insert("id".to_string(), serde_json::Value::String(payload.id.clone()));
+    template_payload.insert(
+        "id".to_string(),
+        serde_json::Value::String(payload.id.clone()),
+    );
     template_payload.insert(
         "duration_minutes".to_string(),
         serde_json::Value::Number(payload.duration_minutes.into()),
@@ -156,7 +161,13 @@ pub async fn list_sessions(
     }
     let user_id = actor_user_id(&ctx)?;
 
-    let params = PaginationParams { page, limit, sort_by, sort_order, filter };
+    let params = PaginationParams {
+        page,
+        limit,
+        sort_by,
+        sort_order,
+        filter,
+    };
     let order = params.sort_order_sql();
     let col = match params.sort_by.as_deref() {
         Some("id") => "id",
@@ -250,13 +261,15 @@ pub async fn assign_session(
             .map_err(|_| ApiError::internal("failed to verify session"))?
             .is_some()
     } else {
-        sqlx::query_scalar::<_, i64>("SELECT 1 FROM exam_sessions WHERE id = ? AND created_by = ? LIMIT 1")
-            .bind(id)
-            .bind(user_id)
-            .fetch_optional(pool.inner())
-            .await
-            .map_err(|_| ApiError::internal("failed to verify session"))?
-            .is_some()
+        sqlx::query_scalar::<_, i64>(
+            "SELECT 1 FROM exam_sessions WHERE id = ? AND created_by = ? LIMIT 1",
+        )
+        .bind(id)
+        .bind(user_id)
+        .fetch_optional(pool.inner())
+        .await
+        .map_err(|_| ApiError::internal("failed to verify session"))?
+        .is_some()
     };
     if !session_exists {
         return Err(ApiError::not_found("session not found"));
@@ -300,7 +313,13 @@ pub async fn assign_session(
         )
         .await;
 
-    audit(audit_service, &ctx, "assign_session", "/api/v1/sessions/{id}/assignments").await;
+    audit(
+        audit_service,
+        &ctx,
+        "assign_session",
+        "/api/v1/sessions/{id}/assignments",
+    )
+    .await;
     Ok(Status::Created)
 }
 
@@ -321,15 +340,17 @@ pub async fn update_session(
     let starts_at = parse_prompt_datetime(&payload.starts_at)?;
     let ends_at = parse_prompt_datetime(&payload.ends_at)?;
     let normalized_status = normalize_session_status(&payload.status);
-    let existing_durations: Vec<i32> = sqlx::query_scalar("SELECT duration_minutes FROM exam_sessions WHERE id <> ?")
-        .bind(id)
-        .fetch_all(pool.inner())
-        .await
-        .unwrap_or_default();
+    let existing_durations: Vec<i32> =
+        sqlx::query_scalar("SELECT duration_minutes FROM exam_sessions WHERE id <> ?")
+            .bind(id)
+            .fetch_all(pool.inner())
+            .await
+            .unwrap_or_default();
     let duration_outlier = if existing_durations.is_empty() {
         false
     } else {
-        let avg = existing_durations.iter().map(|d| *d as f64).sum::<f64>() / existing_durations.len() as f64;
+        let avg = existing_durations.iter().map(|d| *d as f64).sum::<f64>()
+            / existing_durations.len() as f64;
         (payload.duration_minutes as f64) > (avg * 2.5)
     };
     let mut template_payload = std::collections::HashMap::new();
@@ -405,7 +426,13 @@ pub async fn update_session(
         )
         .await;
 
-    audit(audit_service, &ctx, "update_session", "/api/v1/sessions/{id}").await;
+    audit(
+        audit_service,
+        &ctx,
+        "update_session",
+        "/api/v1/sessions/{id}",
+    )
+    .await;
     Ok(Status::Ok)
 }
 
@@ -443,6 +470,12 @@ pub async fn delete_session(
         .record_change("exam_sessions", id, "DELETE", None, None, user_id)
         .await;
 
-    audit(audit_service, &ctx, "delete_session", "/api/v1/sessions/{id}").await;
+    audit(
+        audit_service,
+        &ctx,
+        "delete_session",
+        "/api/v1/sessions/{id}",
+    )
+    .await;
     Ok(Status::NoContent)
 }

@@ -1,9 +1,9 @@
-﻿use anyhow::Result;
+use anyhow::Result;
 use chrono::Utc;
 
 use app_core::file_policy::{
-    sha256_fingerprint, validate_extension, validate_file_count, validate_file_size, CaptureMetadata,
-    FileManifest,
+    sha256_fingerprint, validate_extension, validate_file_count, validate_file_size,
+    CaptureMetadata, FileManifest,
 };
 
 pub struct IncomingFile<'a> {

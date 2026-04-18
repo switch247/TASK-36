@@ -16,9 +16,12 @@ async fn create_message_draft_persists_for_coordinator() {
         "subject": "Exam confirmation",
         "body": "Your exam is scheduled."
     });
-    let resp = attach_auth(app.client.post("/api/v1/messages/drafts").json(&payload), &headers)
-        .dispatch()
-        .await;
+    let resp = attach_auth(
+        app.client.post("/api/v1/messages/drafts").json(&payload),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(resp.status(), Status::Created);
 
     let count: i64 = sqlx::query_scalar(
@@ -40,9 +43,12 @@ async fn create_message_draft_forbidden_for_proctor() {
         "recipient": "nope@example.test",
         "body": "denied"
     });
-    let resp = attach_auth(app.client.post("/api/v1/messages/drafts").json(&payload), &headers)
-        .dispatch()
-        .await;
+    let resp = attach_auth(
+        app.client.post("/api/v1/messages/drafts").json(&payload),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(resp.status(), Status::Forbidden);
 }
 
@@ -71,9 +77,12 @@ async fn create_merge_candidate_persists_row_and_audits() {
         "right_candidate_id": "cand-m-right",
         "similarity_score": 0.91
     });
-    let resp = attach_auth(app.client.post("/api/v1/candidates/merge").json(&payload), &headers)
-        .dispatch()
-        .await;
+    let resp = attach_auth(
+        app.client.post("/api/v1/candidates/merge").json(&payload),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(resp.status(), Status::Created);
 
     let count: i64 = sqlx::query_scalar(
@@ -103,8 +112,11 @@ async fn create_merge_candidate_forbidden_for_proctor() {
         "right_candidate_id": "ignored-right",
         "similarity_score": 0.5
     });
-    let resp = attach_auth(app.client.post("/api/v1/candidates/merge").json(&payload), &headers)
-        .dispatch()
-        .await;
+    let resp = attach_auth(
+        app.client.post("/api/v1/candidates/merge").json(&payload),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(resp.status(), Status::Forbidden);
 }

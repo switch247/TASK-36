@@ -39,7 +39,10 @@ async fn create_session_invalid_duration_returns_400() {
     assert_eq!(body["code"], 400);
     assert_eq!(body["message"], "validation failed");
     assert_eq!(body["details"]["field"], "duration_minutes");
-    assert!(body["details"]["message"].as_str().unwrap_or_default().contains("between 15 and 360"));
+    assert!(body["details"]["message"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("between 15 and 360"));
 }
 
 #[rocket::async_test]
@@ -61,7 +64,10 @@ async fn create_session_bad_datetime_returns_400() {
     assert_eq!(resp.status(), Status::BadRequest);
     let body: Value = resp.into_json().await.expect("error body");
     assert_eq!(body["code"], 400);
-    assert!(body["message"].as_str().unwrap_or_default().contains("datetime"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("datetime"));
 }
 
 #[rocket::async_test]
@@ -69,7 +75,9 @@ async fn create_session_forbidden_for_proctor() {
     let app = setup_app().await.expect("setup");
     let headers = login_as(&app.client, Role::Proctor).await;
     let resp = attach_auth(
-        app.client.post("/api/v1/sessions").json(&session_create_payload("sess-proc")),
+        app.client
+            .post("/api/v1/sessions")
+            .json(&session_create_payload("sess-proc")),
         &headers,
     )
     .dispatch()
@@ -124,21 +132,29 @@ async fn list_sessions_proctor_sees_assigned() {
     assert_eq!(assign_resp.status(), Status::Created);
 
     let proctor_headers = login_as(&app.client, Role::Proctor).await;
-    let resp = attach_auth(app.client.get("/api/v1/sessions?limit=100"), &proctor_headers)
-        .dispatch()
-        .await;
+    let resp = attach_auth(
+        app.client.get("/api/v1/sessions?limit=100"),
+        &proctor_headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(resp.status(), Status::Ok);
     let rows: Vec<Value> = resp.into_json().await.expect("rows");
     let ids: Vec<&str> = rows.iter().filter_map(|r| r["id"].as_str()).collect();
     assert!(ids.contains(&"sess-assign-me"));
-    assert!(!ids.contains(&"sess-unassigned"), "proctor must not see unassigned sessions");
+    assert!(
+        !ids.contains(&"sess-unassigned"),
+        "proctor must not see unassigned sessions"
+    );
 }
 
 #[rocket::async_test]
 async fn list_sessions_forbidden_for_auditor() {
     let app = setup_app().await.expect("setup");
     let headers = login_as(&app.client, Role::Auditor).await;
-    let resp = attach_auth(app.client.get("/api/v1/sessions"), &headers).dispatch().await;
+    let resp = attach_auth(app.client.get("/api/v1/sessions"), &headers)
+        .dispatch()
+        .await;
     assert_eq!(resp.status(), Status::Forbidden);
 }
 
@@ -157,9 +173,12 @@ async fn update_session_by_coordinator_persists() {
         "starts_at": "03/27/2026 09:00 AM",
         "ends_at": "03/27/2026 11:00 AM"
     });
-    let resp = attach_auth(app.client.put("/api/v1/sessions/sess-upd").json(&payload), &headers)
-        .dispatch()
-        .await;
+    let resp = attach_auth(
+        app.client.put("/api/v1/sessions/sess-upd").json(&payload),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(resp.status(), Status::Ok);
 
     let (dur, status): (i32, String) =
@@ -178,7 +197,9 @@ async fn update_session_not_found_returns_404() {
     let headers = login_as(&app.client, Role::Coordinator).await;
 
     let resp = attach_auth(
-        app.client.put("/api/v1/sessions/ghost").json(&session_create_payload("ghost")),
+        app.client
+            .put("/api/v1/sessions/ghost")
+            .json(&session_create_payload("ghost")),
         &headers,
     )
     .dispatch()

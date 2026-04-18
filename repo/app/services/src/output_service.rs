@@ -1,11 +1,11 @@
 use anyhow::{anyhow, Result};
+use app_core::types::UserRole;
 use base64::Engine;
 use chrono::Utc;
 use serde::Serialize;
 use serde_json::{json, Value};
 use sqlx::MySqlPool;
 use tracing::info;
-use app_core::types::UserRole;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PrintOutput {
@@ -73,7 +73,10 @@ impl OutputService {
         .ok_or_else(|| anyhow!("template version not found"))?;
 
         let watermark = if mode.eq_ignore_ascii_case("TestPrint") {
-            Some(format!("TEST PRINT {}", Utc::now().format("%Y-%m-%d %H:%M:%S")))
+            Some(format!(
+                "TEST PRINT {}",
+                Utc::now().format("%Y-%m-%d %H:%M:%S")
+            ))
         } else {
             None
         };
@@ -216,7 +219,10 @@ impl OutputService {
                     .map(|r| {
                         let allocated = candidates
                             .iter()
-                            .filter(|c| c.metadata.get("room_id").and_then(Value::as_str) == Some(r.id.as_str()))
+                            .filter(|c| {
+                                c.metadata.get("room_id").and_then(Value::as_str)
+                                    == Some(r.id.as_str())
+                            })
                             .count();
                         json!({
                             "room_id": r.id,
@@ -306,7 +312,10 @@ impl OutputService {
         for row in rows {
             let mut cols = Vec::with_capacity(fields.len());
             for field in fields {
-                let val = row.get(*field).map(|v| v.to_string()).unwrap_or_else(|| "\"\"".to_string());
+                let val = row
+                    .get(*field)
+                    .map(|v| v.to_string())
+                    .unwrap_or_else(|| "\"\"".to_string());
                 cols.push(val.replace(',', " "));
             }
             out.push_str(&cols.join(","));
@@ -351,14 +360,16 @@ impl OutputService {
         for row in rows {
             xml.push_str("<Row>");
             for field in fields {
-                let raw = row.get(*field).map(|v| {
-                    if let Some(s) = v.as_str() {
-                        s.to_string()
-                    } else {
-                        v.to_string()
-                    }
-                })
-                .unwrap_or_default();
+                let raw = row
+                    .get(*field)
+                    .map(|v| {
+                        if let Some(s) = v.as_str() {
+                            s.to_string()
+                        } else {
+                            v.to_string()
+                        }
+                    })
+                    .unwrap_or_default();
                 xml.push_str(&format!(
                     "<Cell><Data ss:Type=\"String\">{}</Data></Cell>",
                     esc_xml(&raw)
@@ -377,7 +388,9 @@ impl OutputService {
     pub fn export_pdf_placeholder(document_title: &str, body: &str) -> String {
         // Minimal real PDF generation (single page, Helvetica).
         fn esc(s: &str) -> String {
-            s.replace('\\', "\\\\").replace('(', "\\(").replace(')', "\\)")
+            s.replace('\\', "\\\\")
+                .replace('(', "\\(")
+                .replace(')', "\\)")
         }
 
         let text = format!(
@@ -394,7 +407,8 @@ impl OutputService {
         let obj1 = "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n".to_string();
         let obj2 = "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n".to_string();
         let obj3 = "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n".to_string();
-        let obj4 = "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n".to_string();
+        let obj4 =
+            "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n".to_string();
         let obj5 = format!(
             "5 0 obj\n<< /Length {} >>\nstream\n{}\nendstream\nendobj\n",
             stream.len(),

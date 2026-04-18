@@ -43,7 +43,10 @@ pub async fn create_room(
     validate_room_capacity(payload.capacity)?;
     let user_id = actor_user_id(&ctx)?;
     let mut template_payload = std::collections::HashMap::new();
-    template_payload.insert("id".to_string(), serde_json::Value::String(payload.id.clone()));
+    template_payload.insert(
+        "id".to_string(),
+        serde_json::Value::String(payload.id.clone()),
+    );
     template_payload.insert(
         "capacity".to_string(),
         serde_json::Value::Number(payload.capacity.into()),
@@ -123,7 +126,13 @@ pub async fn list_rooms(
         .map_err(|_| ApiError::forbidden("role cannot list rooms"))?;
     let user_id = actor_user_id(&ctx)?;
 
-    let params = PaginationParams { page, limit, sort_by, sort_order, filter };
+    let params = PaginationParams {
+        page,
+        limit,
+        sort_by,
+        sort_order,
+        filter,
+    };
     let order = params.sort_order_sql();
     let col = match params.sort_by.as_deref() {
         Some("id") => "id",
@@ -209,11 +218,12 @@ pub async fn update_room(
         .unwrap_or("room-config");
     validate_against_template(pool.inner(), template_id, template_payload).await?;
 
-    let existing_capacities: Vec<i32> = sqlx::query_scalar("SELECT capacity FROM rooms WHERE id <> ?")
-        .bind(id)
-        .fetch_all(pool.inner())
-        .await
-        .unwrap_or_default();
+    let existing_capacities: Vec<i32> =
+        sqlx::query_scalar("SELECT capacity FROM rooms WHERE id <> ?")
+            .bind(id)
+            .fetch_all(pool.inner())
+            .await
+            .unwrap_or_default();
     let capacity_outlier = if existing_capacities.is_empty() {
         false
     } else {

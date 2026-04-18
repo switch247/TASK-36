@@ -2,9 +2,7 @@ mod common;
 
 use rocket::http::Status;
 
-use common::{
-    auth_headers, login, setup_app, ADMIN_PASSWORD, ADMIN_USERNAME,
-};
+use common::{auth_headers, login, setup_app, ADMIN_PASSWORD, ADMIN_USERNAME};
 
 #[rocket::async_test]
 async fn login_success_returns_tokens() {
@@ -15,20 +13,27 @@ async fn login_success_returns_tokens() {
 
     let body = body.expect("json body");
     let jwt = body["jwt"].as_str().expect("jwt string");
-    assert!(jwt.split('.').count() == 3, "JWT must be three dot-separated segments");
+    assert!(
+        jwt.split('.').count() == 3,
+        "JWT must be three dot-separated segments"
+    );
     assert!(
         uuid::Uuid::parse_str(body["session_id"].as_str().expect("session id")).is_ok(),
         "session_id must be a UUID"
     );
-    assert!(body["jwt_expires_at"].as_str().unwrap_or("").len() >= 20, "jwt_expires_at must look like RFC3339");
+    assert!(
+        body["jwt_expires_at"].as_str().unwrap_or("").len() >= 20,
+        "jwt_expires_at must look like RFC3339"
+    );
     assert!(body["session_expires_at"].as_str().unwrap_or("").len() >= 20);
 
     // DB-level verification: a user_sessions row must exist for the returned session id.
-    let session_row_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM user_sessions WHERE id = ?")
-        .bind(body["session_id"].as_str().unwrap())
-        .fetch_one(&app.pool)
-        .await
-        .expect("session count");
+    let session_row_count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM user_sessions WHERE id = ?")
+            .bind(body["session_id"].as_str().unwrap())
+            .fetch_one(&app.pool)
+            .await
+            .expect("session count");
     assert_eq!(session_row_count, 1, "login must persist a session row");
 }
 
@@ -57,7 +62,10 @@ async fn login_lockout_after_5_failed_attempts() {
     assert_eq!(status, Status::Unauthorized);
     let body = body.expect("json body");
     assert_eq!(body["code"].as_u64(), Some(401));
-    assert!(body["message"].as_str().unwrap_or_default().contains("locked"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("locked"));
 }
 
 #[rocket::async_test]
@@ -66,9 +74,15 @@ async fn protected_without_token_returns_401() {
 
     let response = app.client.get("/api/v1/candidates").dispatch().await;
     assert_eq!(response.status(), Status::Unauthorized);
-    let body = response.into_json::<serde_json::Value>().await.expect("json body");
+    let body = response
+        .into_json::<serde_json::Value>()
+        .await
+        .expect("json body");
     assert_eq!(body["code"], 401);
-    assert!(body["message"].as_str().unwrap_or_default().contains("missing credentials"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("missing credentials"));
 }
 
 #[rocket::async_test]
@@ -78,15 +92,24 @@ async fn protected_with_invalid_token_returns_401() {
     let response = app
         .client
         .get("/api/v1/candidates")
-        .header(rocket::http::Header::new("Authorization", "Bearer not-a-real-token"))
+        .header(rocket::http::Header::new(
+            "Authorization",
+            "Bearer not-a-real-token",
+        ))
         .header(rocket::http::Header::new("x-session-id", "bad-session"))
         .dispatch()
         .await;
 
     assert_eq!(response.status(), Status::Unauthorized);
-    let body = response.into_json::<serde_json::Value>().await.expect("json body");
+    let body = response
+        .into_json::<serde_json::Value>()
+        .await
+        .expect("json body");
     assert_eq!(body["code"], 401);
-    assert!(body["message"].as_str().unwrap_or_default().contains("invalid"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("invalid"));
 }
 
 #[rocket::async_test]
@@ -122,7 +145,10 @@ async fn token_can_access_protected_route() {
         .expect("created candidate should be visible");
     assert_eq!(created["national_id"], "ID-AUTH-TOKEN-001");
     assert_eq!(created["scanned_barcode"], "BAR-AUTH-TOKEN-001");
-    assert!(created["metadata"].is_object(), "candidate payload must include metadata object");
+    assert!(
+        created["metadata"].is_object(),
+        "candidate payload must include metadata object"
+    );
 }
 
 #[rocket::async_test]
@@ -147,7 +173,10 @@ async fn jwt_only_can_access_protected_route() {
     let response = app
         .client
         .get("/api/v1/candidates")
-        .header(rocket::http::Header::new("Authorization", format!("Bearer {jwt}")))
+        .header(rocket::http::Header::new(
+            "Authorization",
+            format!("Bearer {jwt}"),
+        ))
         .dispatch()
         .await;
     assert_eq!(response.status(), Status::Ok);

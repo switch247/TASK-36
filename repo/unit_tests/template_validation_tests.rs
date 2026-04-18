@@ -3,8 +3,8 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use super::common;
+    use std::collections::HashMap;
 
     use serde_json::json;
 
@@ -34,11 +34,15 @@ mod tests {
     async fn template_validation_rejects_missing_template_and_missing_required_fields() {
         let app = common::setup_app().await.expect("setup");
 
-        let missing_template = validate_against_template(&app.pool, "missing-template", HashMap::new())
-            .await
-            .expect_err("missing template must fail");
+        let missing_template =
+            validate_against_template(&app.pool, "missing-template", HashMap::new())
+                .await
+                .expect_err("missing template must fail");
         assert_eq!(missing_template.status.code, 400);
-        assert!(missing_template.body.message.contains("template version not found"));
+        assert!(missing_template
+            .body
+            .message
+            .contains("template version not found"));
 
         let incomplete = HashMap::from([
             ("date_of_birth".to_string(), json!("03/27/2001")),

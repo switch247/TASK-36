@@ -25,7 +25,11 @@ async fn admin_can_create_user_and_record_is_persisted() {
         .fetch_optional(&app.pool)
         .await
         .expect("query");
-    assert_eq!(role.as_deref(), Some("Coordinator"), "role must be normalized");
+    assert_eq!(
+        role.as_deref(),
+        Some("Coordinator"),
+        "role must be normalized"
+    );
 }
 
 #[rocket::async_test]
@@ -44,7 +48,10 @@ async fn create_user_with_invalid_role_returns_400() {
     assert_eq!(resp.status(), Status::BadRequest);
     let body: Value = resp.into_json().await.expect("error body");
     assert_eq!(body["code"], 400);
-    assert!(body["message"].as_str().unwrap_or_default().contains("role"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("role"));
 }
 
 #[rocket::async_test]
@@ -63,7 +70,10 @@ async fn create_user_weak_password_returns_400() {
     assert_eq!(resp.status(), Status::BadRequest);
     let body: Value = resp.into_json().await.expect("error body");
     assert_eq!(body["code"], 400);
-    assert!(body["message"].as_str().unwrap_or_default().contains("password"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("password"));
 }
 
 #[rocket::async_test]
@@ -82,7 +92,10 @@ async fn create_user_duplicate_username_returns_409() {
     assert_eq!(resp.status(), Status::Conflict);
     let body: Value = resp.into_json().await.expect("error body");
     assert_eq!(body["code"], 409);
-    assert!(body["message"].as_str().unwrap_or_default().contains("username"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("username"));
 }
 
 #[rocket::async_test]
@@ -100,10 +113,11 @@ async fn non_admin_cannot_create_user_returns_403() {
         .await;
     assert_eq!(resp.status(), Status::Forbidden);
 
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE username = 'should_not_exist'")
-        .fetch_one(&app.pool)
-        .await
-        .unwrap();
+    let count: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE username = 'should_not_exist'")
+            .fetch_one(&app.pool)
+            .await
+            .unwrap();
     assert_eq!(count, 0, "forbidden create must not persist");
 }
 
@@ -121,7 +135,10 @@ async fn list_users_requires_auth() {
             .contains("missing credentials"),
         "unauthenticated user listing must explain the auth requirement"
     );
-    assert!(body.get("jwt").is_none(), "error payload must not look like a login payload");
+    assert!(
+        body.get("jwt").is_none(),
+        "error payload must not look like a login payload"
+    );
 }
 
 #[rocket::async_test]
@@ -140,7 +157,10 @@ async fn list_users_returns_seeded_users_for_admin() {
     assert!(usernames.contains(&"proctor_local"));
     assert!(usernames.contains(&"auditor_local"));
 
-    let admin_row = rows.iter().find(|r| r["username"] == "admin_local").unwrap();
+    let admin_row = rows
+        .iter()
+        .find(|r| r["username"] == "admin_local")
+        .unwrap();
     assert_eq!(admin_row["role"], "Admin");
     assert!(admin_row["id"].is_string());
     assert!(admin_row["failed_login_attempts"].as_i64().is_some());
@@ -162,10 +182,11 @@ async fn update_user_role_by_admin_persists_change() {
     let app = setup_app().await.expect("setup");
     let headers = login_as(&app.client, Role::Admin).await;
 
-    let proctor_id: String = sqlx::query_scalar("SELECT id FROM users WHERE username = 'proctor_local'")
-        .fetch_one(&app.pool)
-        .await
-        .expect("proctor id");
+    let proctor_id: String =
+        sqlx::query_scalar("SELECT id FROM users WHERE username = 'proctor_local'")
+            .fetch_one(&app.pool)
+            .await
+            .expect("proctor id");
 
     let resp = attach_auth(
         app.client
@@ -190,10 +211,11 @@ async fn update_user_password_by_admin_allows_new_login() {
     let app = setup_app().await.expect("setup");
     let headers = login_as(&app.client, Role::Admin).await;
 
-    let proctor_id: String = sqlx::query_scalar("SELECT id FROM users WHERE username = 'proctor_local'")
-        .fetch_one(&app.pool)
-        .await
-        .expect("proctor id");
+    let proctor_id: String =
+        sqlx::query_scalar("SELECT id FROM users WHERE username = 'proctor_local'")
+            .fetch_one(&app.pool)
+            .await
+            .expect("proctor id");
 
     let resp = attach_auth(
         app.client
@@ -225,7 +247,10 @@ async fn update_user_not_found_returns_404() {
     assert_eq!(resp.status(), Status::NotFound);
     let body: Value = resp.into_json().await.expect("error body");
     assert_eq!(body["code"], 404);
-    assert!(body["message"].as_str().unwrap_or_default().contains("user"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("user"));
 }
 
 #[rocket::async_test]
@@ -233,10 +258,11 @@ async fn update_user_forbidden_for_non_admin() {
     let app = setup_app().await.expect("setup");
     let headers = login_as(&app.client, Role::Coordinator).await;
 
-    let target_id: String = sqlx::query_scalar("SELECT id FROM users WHERE username = 'proctor_local'")
-        .fetch_one(&app.pool)
-        .await
-        .unwrap();
+    let target_id: String =
+        sqlx::query_scalar("SELECT id FROM users WHERE username = 'proctor_local'")
+            .fetch_one(&app.pool)
+            .await
+            .unwrap();
 
     let resp = attach_auth(
         app.client
@@ -254,11 +280,21 @@ async fn delete_user_by_admin_removes_row() {
     let app = setup_app().await.expect("setup");
     let headers = login_as(&app.client, Role::Admin).await;
 
-    let user_id = common::factory_user(&app.client, &app.pool, "to_be_removed", "StrongPass#2026!", "Auditor").await;
+    let user_id = common::factory_user(
+        &app.client,
+        &app.pool,
+        "to_be_removed",
+        "StrongPass#2026!",
+        "Auditor",
+    )
+    .await;
 
-    let resp = attach_auth(app.client.delete(format!("/api/v1/users/{user_id}")), &headers)
-        .dispatch()
-        .await;
+    let resp = attach_auth(
+        app.client.delete(format!("/api/v1/users/{user_id}")),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(resp.status(), Status::NoContent);
 
     let remaining: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE id = ?")
@@ -280,7 +316,10 @@ async fn delete_user_not_found_returns_404() {
     assert_eq!(resp.status(), Status::NotFound);
     let body: Value = resp.into_json().await.expect("error body");
     assert_eq!(body["code"], 404);
-    assert!(body["message"].as_str().unwrap_or_default().contains("user"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("user"));
 }
 
 #[rocket::async_test]
@@ -288,11 +327,21 @@ async fn delete_user_forbidden_for_non_admin() {
     let app = setup_app().await.expect("setup");
     let coord_headers = login_as(&app.client, Role::Coordinator).await;
 
-    let user_id = common::factory_user(&app.client, &app.pool, "protected_user", "StrongPass#2026!", "Auditor").await;
+    let user_id = common::factory_user(
+        &app.client,
+        &app.pool,
+        "protected_user",
+        "StrongPass#2026!",
+        "Auditor",
+    )
+    .await;
 
-    let resp = attach_auth(app.client.delete(format!("/api/v1/users/{user_id}")), &coord_headers)
-        .dispatch()
-        .await;
+    let resp = attach_auth(
+        app.client.delete(format!("/api/v1/users/{user_id}")),
+        &coord_headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(resp.status(), Status::Forbidden);
 
     let still_there: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE id = ?")

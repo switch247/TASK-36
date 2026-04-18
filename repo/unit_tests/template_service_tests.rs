@@ -38,6 +38,9 @@ mod tests {
         assert!(snapshot.locked_for_final_print);
         assert_eq!(snapshot.template_id, template.template_id);
         assert_eq!(snapshot.version, template.version);
-        assert_eq!(snapshot.snapshot_json["template_id"], json!(template.template_id));
+        assert_eq!(
+            snapshot.snapshot_json["template_id"],
+            json!(template.template_id)
+        );
     }
 }

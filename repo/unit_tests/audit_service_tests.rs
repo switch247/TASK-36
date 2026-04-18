@@ -13,7 +13,12 @@ mod tests {
         let service = AuditService::new(app.pool.clone());
 
         service
-            .record_api_call(Some("user-1"), "list_candidates", "/api/v1/candidates", "127.0.0.1")
+            .record_api_call(
+                Some("user-1"),
+                "list_candidates",
+                "/api/v1/candidates",
+                "127.0.0.1",
+            )
             .await
             .expect("record api call");
 
@@ -75,7 +80,10 @@ mod tests {
         .fetch_one(&app.pool)
         .await
         .expect("audit row");
-        assert!(row.0.is_none(), "anonymous audit rows must keep actor_user_id null");
+        assert!(
+            row.0.is_none(),
+            "anonymous audit rows must keep actor_user_id null"
+        );
         assert_eq!(row.1, "healthcheck");
         assert_eq!(row.2, "/api/v1/health");
     }

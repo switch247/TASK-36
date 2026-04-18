@@ -1,32 +1,44 @@
-mod auth;
-mod users;
-mod candidates;
-mod rooms;
-mod sessions;
 mod assets;
-mod reports;
-mod outputs;
-mod exports;
-mod templates;
-mod scans;
+mod auth;
+mod candidates;
 mod errors;
-mod shared;
+mod exports;
+mod outputs;
 mod pagination;
-mod validators;
+mod reports;
+mod rooms;
+mod scans;
+mod sessions;
+mod shared;
 mod template_validation;
+mod templates;
+mod users;
+mod validators;
 
-pub use auth::login;
-pub use users::{create_user, delete_user, list_users, update_user};
-pub use candidates::{create_candidate, delete_candidate, get_candidate, list_candidates, update_candidate, create_merge_candidate};
-pub use rooms::{create_room, delete_room, list_rooms, update_room};
-pub use sessions::{assign_session, create_session, delete_session, list_sessions, update_session};
 pub use assets::{create_asset, delete_asset, list_assets, update_asset};
-pub use reports::{dashboard_summary, incident_rates, incident_rates_fallback, materials_inventory, near_expiry_alerts, operations_alerts, reports_dashboard, return_rates, seat_utilization};
-pub use outputs::{print_admit_cards, print_door_signs, print_seating_charts, print_proctor_packet, print_summary_report, create_message_draft, upload_attachment, list_attachments, get_attachment, generate_output, list_outputs, list_outputs_fallback};
+pub use auth::login;
+pub use candidates::{
+    create_candidate, create_merge_candidate, delete_candidate, get_candidate, list_candidates,
+    update_candidate,
+};
 pub use exports::{export_csv, export_excel, export_pdf};
-pub use templates::{create_template, delete_template, list_templates, lock_template, update_template};
+pub use outputs::{
+    create_message_draft, generate_output, get_attachment, list_attachments, list_outputs,
+    list_outputs_fallback, print_admit_cards, print_door_signs, print_proctor_packet,
+    print_seating_charts, print_summary_report, upload_attachment,
+};
+pub use reports::{
+    dashboard_summary, incident_rates, incident_rates_fallback, materials_inventory,
+    near_expiry_alerts, operations_alerts, reports_dashboard, return_rates, seat_utilization,
+};
+pub use rooms::{create_room, delete_room, list_rooms, update_room};
 pub use scans::lookup_scan;
+pub use sessions::{assign_session, create_session, delete_session, list_sessions, update_session};
 pub use template_validation::{validate_against_template, validate_against_template_partial};
+pub use templates::{
+    create_template, delete_template, list_templates, lock_template, update_template,
+};
+pub use users::{create_user, delete_user, list_users, update_user};
 
 // Narrow re-exports for downstream test targets and other crates that need to
 // reference request-guard or validator types without depending on this crate's

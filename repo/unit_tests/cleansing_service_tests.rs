@@ -11,9 +11,18 @@ mod tests {
         let app = common::setup_app().await.expect("setup");
         let service = CleansingService::new(app.pool.clone());
 
-        assert!(service.validate_zip_city("00100", "Nairobi").await.expect("match"));
-        assert!(!service.validate_zip_city("00100", "Kisumu").await.expect("mismatch"));
-        assert!(!service.validate_zip_city("99999", "Unknown").await.expect("missing"));
+        assert!(service
+            .validate_zip_city("00100", "Nairobi")
+            .await
+            .expect("match"));
+        assert!(!service
+            .validate_zip_city("00100", "Kisumu")
+            .await
+            .expect("mismatch"));
+        assert!(!service
+            .validate_zip_city("99999", "Unknown")
+            .await
+            .expect("missing"));
     }
 
     #[test]
@@ -38,7 +47,9 @@ mod tests {
         assert!(CleansingService::is_room_capacity_outlier(500, &[50, 60, 40]).expect("outlier"));
         assert!(CleansingService::is_room_capacity_outlier(100, &[]).is_err());
         assert_eq!(
-            CleansingService::parse_dob("03/27/2026").expect("dob").to_string(),
+            CleansingService::parse_dob("03/27/2026")
+                .expect("dob")
+                .to_string(),
             "2026-03-27"
         );
         assert!(CleansingService::parse_dob("not-a-date").is_err());

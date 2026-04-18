@@ -19,7 +19,9 @@ async fn create_room_as_coordinator_persists_and_audits() {
     let headers = login_as(&app.client, Role::Coordinator).await;
 
     let resp = attach_auth(
-        app.client.post("/api/v1/rooms").json(&room_payload("room-new-1", 50, "Hall A")),
+        app.client
+            .post("/api/v1/rooms")
+            .json(&room_payload("room-new-1", 50, "Hall A")),
         &headers,
     )
     .dispatch()
@@ -49,7 +51,9 @@ async fn create_room_capacity_out_of_range_returns_400() {
     let headers = login_as(&app.client, Role::Coordinator).await;
 
     let resp = attach_auth(
-        app.client.post("/api/v1/rooms").json(&room_payload("room-too-big", 9999, "Hall A")),
+        app.client
+            .post("/api/v1/rooms")
+            .json(&room_payload("room-too-big", 9999, "Hall A")),
         &headers,
     )
     .dispatch()
@@ -74,7 +78,9 @@ async fn create_room_duplicate_id_returns_409() {
     let headers = login_as(&app.client, Role::Coordinator).await;
 
     let first = attach_auth(
-        app.client.post("/api/v1/rooms").json(&room_payload("room-dup", 80, "Hall B")),
+        app.client
+            .post("/api/v1/rooms")
+            .json(&room_payload("room-dup", 80, "Hall B")),
         &headers,
     )
     .dispatch()
@@ -82,7 +88,9 @@ async fn create_room_duplicate_id_returns_409() {
     assert_eq!(first.status(), Status::Created);
 
     let second = attach_auth(
-        app.client.post("/api/v1/rooms").json(&room_payload("room-dup", 80, "Hall B")),
+        app.client
+            .post("/api/v1/rooms")
+            .json(&room_payload("room-dup", 80, "Hall B")),
         &headers,
     )
     .dispatch()
@@ -90,7 +98,10 @@ async fn create_room_duplicate_id_returns_409() {
     assert_eq!(second.status(), Status::Conflict);
     let body: Value = second.into_json().await.expect("error body");
     assert_eq!(body["code"], 409);
-    assert!(body["message"].as_str().unwrap_or_default().contains("room"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("room"));
 }
 
 #[rocket::async_test]
@@ -99,7 +110,9 @@ async fn create_room_forbidden_for_proctor() {
     let headers = login_as(&app.client, Role::Proctor).await;
 
     let resp = attach_auth(
-        app.client.post("/api/v1/rooms").json(&room_payload("room-proc", 40, "Hall P")),
+        app.client
+            .post("/api/v1/rooms")
+            .json(&room_payload("room-proc", 40, "Hall P")),
         &headers,
     )
     .dispatch()
@@ -107,7 +120,10 @@ async fn create_room_forbidden_for_proctor() {
     assert_eq!(resp.status(), Status::Forbidden);
     let body: Value = resp.into_json().await.expect("error body");
     assert_eq!(body["code"], 403);
-    assert!(body["message"].as_str().unwrap_or_default().contains("role"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("role"));
 }
 
 #[rocket::async_test]
@@ -144,7 +160,10 @@ async fn list_rooms_scoped_to_coordinator() {
     let rows: Vec<Value> = resp.into_json().await.expect("rows");
     let ids: Vec<&str> = rows.iter().filter_map(|r| r["id"].as_str()).collect();
     assert!(ids.contains(&"room-mine"));
-    assert!(!ids.contains(&"room-other"), "coordinator must not see another coordinator's rooms");
+    assert!(
+        !ids.contains(&"room-other"),
+        "coordinator must not see another coordinator's rooms"
+    );
 }
 
 #[rocket::async_test]
@@ -179,7 +198,9 @@ async fn list_rooms_with_filter_restricts_results() {
     assert_eq!(resp.status(), Status::Ok);
     let rows: Vec<Value> = resp.into_json().await.expect("rows");
     let matched: Vec<&str> = rows.iter().filter_map(|r| r["location"].as_str()).collect();
-    assert!(matched.iter().all(|loc| loc.to_ascii_lowercase().contains("alpha")));
+    assert!(matched
+        .iter()
+        .all(|loc| loc.to_ascii_lowercase().contains("alpha")));
 }
 
 #[rocket::async_test]
@@ -199,11 +220,12 @@ async fn update_room_by_owner_persists_and_returns_200() {
     .await;
     assert_eq!(resp.status(), Status::Ok);
 
-    let (cap, loc): (i32, String) = sqlx::query_as("SELECT capacity, location FROM rooms WHERE id = ?")
-        .bind("room-upd")
-        .fetch_one(&app.pool)
-        .await
-        .unwrap();
+    let (cap, loc): (i32, String) =
+        sqlx::query_as("SELECT capacity, location FROM rooms WHERE id = ?")
+            .bind("room-upd")
+            .fetch_one(&app.pool)
+            .await
+            .unwrap();
     assert_eq!(cap, 75);
     assert_eq!(loc, "Renovated");
 }
@@ -224,7 +246,10 @@ async fn update_room_not_found_returns_404() {
     assert_eq!(resp.status(), Status::NotFound);
     let body: Value = resp.into_json().await.expect("error body");
     assert_eq!(body["code"], 404);
-    assert!(body["message"].as_str().unwrap_or_default().contains("room"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("room"));
 }
 
 #[rocket::async_test]
@@ -252,12 +277,16 @@ async fn update_room_owned_by_another_user_returns_404() {
     .await;
     assert_eq!(resp.status(), Status::NotFound);
 
-    let (cap, loc): (i32, String) = sqlx::query_as("SELECT capacity, location FROM rooms WHERE id = ?")
-        .bind("room-foreign")
-        .fetch_one(&app.pool)
-        .await
-        .unwrap();
-    assert_eq!(cap, 20, "foreign coordinator must not mutate another's room");
+    let (cap, loc): (i32, String) =
+        sqlx::query_as("SELECT capacity, location FROM rooms WHERE id = ?")
+            .bind("room-foreign")
+            .fetch_one(&app.pool)
+            .await
+            .unwrap();
+    assert_eq!(
+        cap, 20,
+        "foreign coordinator must not mutate another's room"
+    );
     assert_eq!(loc, "Foreign");
 }
 
@@ -288,9 +317,12 @@ async fn delete_room_forbidden_for_proctor() {
     let coord_id = user_id_for(&app.pool, COORD_USERNAME).await;
     factory_room(&app.pool, "room-keep", 20, "Keep", &coord_id).await;
 
-    let resp = attach_auth(app.client.delete("/api/v1/rooms/room-keep"), &proctor_headers)
-        .dispatch()
-        .await;
+    let resp = attach_auth(
+        app.client.delete("/api/v1/rooms/room-keep"),
+        &proctor_headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(resp.status(), Status::Forbidden);
 }
 
@@ -305,5 +337,8 @@ async fn delete_room_not_found_returns_404() {
     assert_eq!(resp.status(), Status::NotFound);
     let body: Value = resp.into_json().await.expect("error body");
     assert_eq!(body["code"], 404);
-    assert!(body["message"].as_str().unwrap_or_default().contains("room"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("room"));
 }

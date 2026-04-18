@@ -3,7 +3,10 @@ mod common;
 use rocket::http::Status;
 use serde_json::json;
 
-use common::{attach_auth, auth_headers, login, setup_app, COORD_PASSWORD, COORD_USERNAME, PROCTOR_PASSWORD, PROCTOR_USERNAME};
+use common::{
+    attach_auth, auth_headers, login, setup_app, COORD_PASSWORD, COORD_USERNAME, PROCTOR_PASSWORD,
+    PROCTOR_USERNAME,
+};
 
 #[rocket::async_test]
 async fn final_print_allowed_for_proctor_and_coordinator() {
@@ -121,9 +124,12 @@ async fn final_print_allowed_for_proctor_and_coordinator() {
     .await;
     assert_eq!(update_resp.status(), Status::Conflict);
 
-    let delete_resp = attach_auth(app.client.delete("/api/v1/templates/Template A/1"), &coord_headers)
-        .dispatch()
-        .await;
+    let delete_resp = attach_auth(
+        app.client.delete("/api/v1/templates/Template A/1"),
+        &coord_headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(delete_resp.status(), Status::Conflict);
 }
 
@@ -169,7 +175,8 @@ async fn unassigned_proctor_cannot_print_foreign_session() {
 async fn export_csv_writes_audit_log() {
     let app = setup_app().await.expect("Failed to initialize test app");
 
-    let (status, admin_login) = login(&app.client, common::ADMIN_USERNAME, common::ADMIN_PASSWORD).await;
+    let (status, admin_login) =
+        login(&app.client, common::ADMIN_USERNAME, common::ADMIN_PASSWORD).await;
     assert_eq!(status, Status::Ok);
     let admin_body = admin_login.expect("admin login body");
     let admin_headers = auth_headers(&admin_body);

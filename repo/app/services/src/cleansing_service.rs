@@ -1,4 +1,4 @@
-﻿use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
 use sqlx::MySqlPool;
 
@@ -61,7 +61,8 @@ impl CleansingService {
         if all_capacities.is_empty() {
             return Err(anyhow!("capacity baseline cannot be empty"));
         }
-        let avg = all_capacities.iter().map(|v| *v as f64).sum::<f64>() / all_capacities.len() as f64;
+        let avg =
+            all_capacities.iter().map(|v| *v as f64).sum::<f64>() / all_capacities.len() as f64;
         Ok((capacity as f64) > (avg * 3.0))
     }
 

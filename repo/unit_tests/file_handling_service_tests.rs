@@ -10,8 +10,9 @@ mod tests {
             bytes: b"proof-bytes",
         }];
 
-        let manifests = FileHandlingService::validate_and_manifest(&files, "operator-1", "scanner-a")
-            .expect("manifest generation should succeed");
+        let manifests =
+            FileHandlingService::validate_and_manifest(&files, "operator-1", "scanner-a")
+                .expect("manifest generation should succeed");
 
         assert_eq!(manifests.len(), 1);
         assert_eq!(manifests[0].file_name, "evidence");

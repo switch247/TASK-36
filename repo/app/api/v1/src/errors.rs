@@ -1,4 +1,4 @@
-﻿use rocket::http::Status;
+use rocket::http::Status;
 use rocket::request::Request;
 use rocket::response::{Responder, Response};
 use rocket::serde::{json::Json, Serialize};
@@ -17,7 +17,11 @@ pub struct ApiError {
 }
 
 impl ApiError {
-    pub fn new(status: Status, message: impl Into<String>, details: Option<serde_json::Value>) -> Self {
+    pub fn new(
+        status: Status,
+        message: impl Into<String>,
+        details: Option<serde_json::Value>,
+    ) -> Self {
         Self {
             status,
             body: ApiErrorBody {

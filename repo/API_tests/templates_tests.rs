@@ -54,9 +54,12 @@ async fn create_template_new_version_persists() {
         },
         "lock_for_final_print": false
     });
-    let resp = attach_auth(app.client.post("/api/v1/templates").json(&payload), &headers)
-        .dispatch()
-        .await;
+    let resp = attach_auth(
+        app.client.post("/api/v1/templates").json(&payload),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(resp.status(), Status::Created);
 
     let count: i64 = sqlx::query_scalar(
@@ -80,13 +83,19 @@ async fn create_template_duplicate_version_returns_409() {
         "snapshot": {"rules":{"id":["Required"]}},
         "lock_for_final_print": false
     });
-    let resp = attach_auth(app.client.post("/api/v1/templates").json(&payload), &headers)
-        .dispatch()
-        .await;
+    let resp = attach_auth(
+        app.client.post("/api/v1/templates").json(&payload),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(resp.status(), Status::Conflict);
     let body: Value = resp.into_json().await.expect("error body");
     assert_eq!(body["code"], 409);
-    assert!(body["message"].as_str().unwrap_or_default().contains("template"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("template"));
 }
 
 #[rocket::async_test]
@@ -100,9 +109,12 @@ async fn create_template_forbidden_for_proctor() {
         "snapshot": {},
         "lock_for_final_print": false
     });
-    let resp = attach_auth(app.client.post("/api/v1/templates").json(&payload), &headers)
-        .dispatch()
-        .await;
+    let resp = attach_auth(
+        app.client.post("/api/v1/templates").json(&payload),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(resp.status(), Status::Forbidden);
 }
 
@@ -117,7 +129,9 @@ async fn lock_template_creates_a_version() {
         "lock_for_final_print": true
     });
     let resp = attach_auth(
-        app.client.post("/api/v1/templates/base-template/lock").json(&payload),
+        app.client
+            .post("/api/v1/templates/base-template/lock")
+            .json(&payload),
         &headers,
     )
     .dispatch()
@@ -144,7 +158,9 @@ async fn lock_template_forbidden_for_auditor() {
         "lock_for_final_print": true
     });
     let resp = attach_auth(
-        app.client.post("/api/v1/templates/base-template/lock").json(&payload),
+        app.client
+            .post("/api/v1/templates/base-template/lock")
+            .json(&payload),
         &headers,
     )
     .dispatch()
@@ -176,7 +192,9 @@ async fn update_template_success_path_mutates_unlocked_version() {
         "lock_for_final_print": false
     });
     let resp = attach_auth(
-        app.client.put("/api/v1/templates/mutable-template/1").json(&update_payload),
+        app.client
+            .put("/api/v1/templates/mutable-template/1")
+            .json(&update_payload),
         &headers,
     )
     .dispatch()
@@ -202,7 +220,9 @@ async fn update_template_missing_version_returns_404() {
         "lock_for_final_print": false
     });
     let resp = attach_auth(
-        app.client.put("/api/v1/templates/ghost-template/99").json(&payload),
+        app.client
+            .put("/api/v1/templates/ghost-template/99")
+            .json(&payload),
         &headers,
     )
     .dispatch()
@@ -210,7 +230,10 @@ async fn update_template_missing_version_returns_404() {
     assert_eq!(resp.status(), Status::NotFound);
     let body: Value = resp.into_json().await.expect("error body");
     assert_eq!(body["code"], 404);
-    assert!(body["message"].as_str().unwrap_or_default().contains("template"));
+    assert!(body["message"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("template"));
 }
 
 #[rocket::async_test]
@@ -224,9 +247,12 @@ async fn delete_template_success_removes_unlocked_version() {
         "snapshot": {"rules":{"id":["Required"]}},
         "lock_for_final_print": false
     });
-    attach_auth(app.client.post("/api/v1/templates").json(&create_payload), &headers)
-        .dispatch()
-        .await;
+    attach_auth(
+        app.client.post("/api/v1/templates").json(&create_payload),
+        &headers,
+    )
+    .dispatch()
+    .await;
 
     let resp = attach_auth(app.client.delete("/api/v1/templates/delete-me/7"), &headers)
         .dispatch()
@@ -247,8 +273,11 @@ async fn delete_template_forbidden_for_proctor() {
     let app = setup_app().await.expect("setup");
     let headers = login_as(&app.client, Role::Proctor).await;
 
-    let resp = attach_auth(app.client.delete("/api/v1/templates/base-template/1"), &headers)
-        .dispatch()
-        .await;
+    let resp = attach_auth(
+        app.client.delete("/api/v1/templates/base-template/1"),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(resp.status(), Status::Forbidden);
 }

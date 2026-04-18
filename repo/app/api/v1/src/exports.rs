@@ -1,10 +1,10 @@
-use rocket::serde::json::Json;
 use rocket::post;
+use rocket::serde::json::Json;
 use rocket::State;
 
+use app_services::audit_service::AuditService;
 use app_services::output_service::OutputService;
 use app_services::rbac_service::RbacService;
-use app_services::audit_service::AuditService;
 use app_services::reporting_service::ReportingService;
 
 use crate::errors::{ApiError, ApiResult};
@@ -84,7 +84,8 @@ pub async fn export_pdf(
 
     let csv = OutputService::export_csv_whitelisted(&rows, &field_refs)
         .map_err(|_| ApiError::bad_request("invalid export request"))?;
-    let content = OutputService::export_pdf_placeholder(&format!("{} Export", payload.report), &csv);
+    let content =
+        OutputService::export_pdf_placeholder(&format!("{} Export", payload.report), &csv);
 
     audit(audit_service, &ctx, "export_data", "/api/v1/exports/pdf").await;
     Ok(Json(ExportResponse { content }))

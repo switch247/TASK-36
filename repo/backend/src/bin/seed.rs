@@ -73,15 +73,13 @@ async fn seed_users(pool: &MySqlPool, admin_id: &str) -> anyhow::Result<()> {
         (
             "33333333-3333-3333-3333-333333333333".to_string(),
             "proctor_local".to_string(),
-            env::var("SEED_PROCTOR_PASSWORD")
-                .unwrap_or_else(|_| "ProctorPass#2026!".to_string()),
+            env::var("SEED_PROCTOR_PASSWORD").unwrap_or_else(|_| "ProctorPass#2026!".to_string()),
             "Proctor".to_string(),
         ),
         (
             "44444444-4444-4444-4444-444444444444".to_string(),
             "auditor_local".to_string(),
-            env::var("SEED_AUDITOR_PASSWORD")
-                .unwrap_or_else(|_| "AuditorPass#2026!".to_string()),
+            env::var("SEED_AUDITOR_PASSWORD").unwrap_or_else(|_| "AuditorPass#2026!".to_string()),
             "Auditor".to_string(),
         ),
     ];
@@ -207,9 +205,27 @@ async fn seed_templates(pool: &MySqlPool, admin_id: &str) -> anyhow::Result<()> 
 
 async fn seed_candidates(pool: &MySqlPool, admin_id: &str) -> anyhow::Result<()> {
     let candidates = [
-        ("cand-seed-001", "ENC_DOB_001", "NAT001122", "BARCODE-001", r#"{"room_id":"room-seed-001","name":"Alice Demo"}"#),
-        ("cand-seed-002", "ENC_DOB_002", "NAT001123", "BARCODE-002", r#"{"room_id":"room-seed-002","name":"Brian Demo"}"#),
-        ("cand-seed-003", "ENC_DOB_003", "NAT001124", "BARCODE-003", r#"{"room_id":"room-seed-003","name":"Carla Demo"}"#),
+        (
+            "cand-seed-001",
+            "ENC_DOB_001",
+            "NAT001122",
+            "BARCODE-001",
+            r#"{"room_id":"room-seed-001","name":"Alice Demo"}"#,
+        ),
+        (
+            "cand-seed-002",
+            "ENC_DOB_002",
+            "NAT001123",
+            "BARCODE-002",
+            r#"{"room_id":"room-seed-002","name":"Brian Demo"}"#,
+        ),
+        (
+            "cand-seed-003",
+            "ENC_DOB_003",
+            "NAT001124",
+            "BARCODE-003",
+            r#"{"room_id":"room-seed-003","name":"Carla Demo"}"#,
+        ),
     ];
 
     for (id, encrypted_dob, national_id, scanned_barcode, metadata_json) in candidates {
@@ -232,9 +248,30 @@ async fn seed_candidates(pool: &MySqlPool, admin_id: &str) -> anyhow::Result<()>
 
 async fn seed_sessions(pool: &MySqlPool, admin_id: &str) -> anyhow::Result<()> {
     let sessions = [
-        ("session-seed-001", "candidate-registration", 90, "Scheduled", "03/28/2026 09:00 AM", "03/28/2026 10:30 AM"),
-        ("session-seed-002", "candidate-registration", 60, "Scheduled", "03/28/2026 11:00 AM", "03/28/2026 12:00 PM"),
-        ("session-seed-003", "candidate-registration", 120, "Draft", "03/29/2026 08:00 AM", "03/29/2026 10:00 AM"),
+        (
+            "session-seed-001",
+            "candidate-registration",
+            90,
+            "Scheduled",
+            "03/28/2026 09:00 AM",
+            "03/28/2026 10:30 AM",
+        ),
+        (
+            "session-seed-002",
+            "candidate-registration",
+            60,
+            "Scheduled",
+            "03/28/2026 11:00 AM",
+            "03/28/2026 12:00 PM",
+        ),
+        (
+            "session-seed-003",
+            "candidate-registration",
+            120,
+            "Draft",
+            "03/29/2026 08:00 AM",
+            "03/29/2026 10:00 AM",
+        ),
     ];
 
     for (id, template_name, duration_minutes, status, starts_at, ends_at) in sessions {
@@ -258,9 +295,30 @@ async fn seed_sessions(pool: &MySqlPool, admin_id: &str) -> anyhow::Result<()> {
 
 async fn seed_assets(pool: &MySqlPool, admin_id: &str) -> anyhow::Result<()> {
     let assets = [
-        ("asset-seed-001", "BOOKLET-A01", "Prepared", "session-seed-001", "2026-05-01", 0),
-        ("asset-seed-002", "BOOKLET-B14", "InTransit", "session-seed-002", "2026-04-15", 1),
-        ("asset-seed-003", "BOOKLET-C07", "Delivered", "session-seed-003", "2026-04-30", 0),
+        (
+            "asset-seed-001",
+            "BOOKLET-A01",
+            "Prepared",
+            "session-seed-001",
+            "2026-05-01",
+            0,
+        ),
+        (
+            "asset-seed-002",
+            "BOOKLET-B14",
+            "InTransit",
+            "session-seed-002",
+            "2026-04-15",
+            1,
+        ),
+        (
+            "asset-seed-003",
+            "BOOKLET-C07",
+            "Delivered",
+            "session-seed-003",
+            "2026-04-30",
+            0,
+        ),
     ];
 
     for (id, booklet_code, tracking_status, session_id, expires_on, incident_count) in assets {

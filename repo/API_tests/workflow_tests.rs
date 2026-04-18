@@ -22,7 +22,9 @@ async fn workflow_create_candidate_session_output_export() {
         "metadata_json": "{\"room_id\":\"room-x\"}"
     });
     let response = common::attach_auth(
-        app.client.post("/api/v1/candidates").json(&create_candidate),
+        app.client
+            .post("/api/v1/candidates")
+            .json(&create_candidate),
         &headers,
     )
     .dispatch()
@@ -73,7 +75,10 @@ async fn workflow_create_candidate_session_output_export() {
     .await;
     assert_eq!(export_response.status(), Status::Ok);
     let body: Value = export_response.into_json().await.expect("export json");
-    assert!(body["content"].as_str().unwrap_or_default().contains("session_id"));
+    assert!(body["content"]
+        .as_str()
+        .unwrap_or_default()
+        .contains("session_id"));
 
     let locked = sqlx::query_scalar::<_, i64>(
         "SELECT locked_for_final_print FROM exam_sessions WHERE id = 'sess-flow'",
@@ -115,8 +120,9 @@ async fn reports_pagination_filtering_and_sorting_boundaries() {
         .ok();
 
     let response = common::attach_auth(
-        app.client
-            .get("/api/v1/operations/seat-utilization?page=1&limit=10&sort_by=capacity&sort_order=asc"),
+        app.client.get(
+            "/api/v1/operations/seat-utilization?page=1&limit=10&sort_by=capacity&sort_order=asc",
+        ),
         &headers,
     )
     .dispatch()
@@ -165,7 +171,10 @@ async fn reports_pagination_filtering_and_sorting_boundaries() {
     .await;
     assert_eq!(alerts_resp.status(), Status::Ok);
     let alerts_body: Value = alerts_resp.into_json().await.expect("alerts json");
-    assert!(alerts_body.is_array(), "alerts endpoint must return a JSON array");
+    assert!(
+        alerts_body.is_array(),
+        "alerts endpoint must return a JSON array"
+    );
 }
 
 #[rocket::async_test]
@@ -184,12 +193,18 @@ async fn concurrent_duplicate_candidate_submission_conflict() {
         "metadata_json": "{\"room_id\":\"room-x\"}"
     });
 
-    let first = common::attach_auth(app.client.post("/api/v1/candidates").json(&payload), &headers)
-        .dispatch()
-        .await;
-    let second = common::attach_auth(app.client.post("/api/v1/candidates").json(&payload), &headers)
-        .dispatch()
-        .await;
+    let first = common::attach_auth(
+        app.client.post("/api/v1/candidates").json(&payload),
+        &headers,
+    )
+    .dispatch()
+    .await;
+    let second = common::attach_auth(
+        app.client.post("/api/v1/candidates").json(&payload),
+        &headers,
+    )
+    .dispatch()
+    .await;
 
     let statuses = [first.status(), second.status()];
     assert!(statuses.contains(&Status::Created));
@@ -328,7 +343,9 @@ async fn scan_candidate_lookup_non_owner_denied() {
         "metadata_json": "{\"name\":\"Scan Deny Candidate\",\"room_id\":\"room-x\"}"
     });
     let created = common::attach_auth(
-        app.client.post("/api/v1/candidates").json(&create_candidate),
+        app.client
+            .post("/api/v1/candidates")
+            .json(&create_candidate),
         &owner_headers,
     )
     .dispatch()
@@ -401,7 +418,9 @@ async fn attachment_upload_and_retrieval_roundtrip() {
         "metadata_json": "{\"name\":\"Attach Roundtrip\"}"
     });
     let c_resp = common::attach_auth(
-        app.client.post("/api/v1/candidates").json(&create_candidate),
+        app.client
+            .post("/api/v1/candidates")
+            .json(&create_candidate),
         &headers,
     )
     .dispatch()
@@ -439,7 +458,8 @@ async fn attachment_upload_and_retrieval_roundtrip() {
     let attachment_id = rows[0]["id"].as_str().expect("attachment id");
 
     let get_resp = common::attach_auth(
-        app.client.get(format!("/api/v1/attachments/{attachment_id}")),
+        app.client
+            .get(format!("/api/v1/attachments/{attachment_id}")),
         &headers,
     )
     .dispatch()

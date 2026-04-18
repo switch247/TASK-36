@@ -52,11 +52,12 @@ mod tests {
 
         assert!(draft.subject.is_none());
 
-        let row: Option<String> = sqlx::query_scalar("SELECT subject FROM message_drafts WHERE id = ?")
-            .bind(&draft.id)
-            .fetch_one(&app.pool)
-            .await
-            .expect("draft subject");
+        let row: Option<String> =
+            sqlx::query_scalar("SELECT subject FROM message_drafts WHERE id = ?")
+                .bind(&draft.id)
+                .fetch_one(&app.pool)
+                .await
+                .expect("draft subject");
         assert!(row.is_none());
     }
 
@@ -76,7 +77,10 @@ mod tests {
             .await
             .expect("create draft");
 
-        assert!(uuid::Uuid::parse_str(&draft.id).is_ok(), "draft ids must be UUIDs");
+        assert!(
+            uuid::Uuid::parse_str(&draft.id).is_ok(),
+            "draft ids must be UUIDs"
+        );
         assert_eq!(draft.body, "All systems nominal");
         assert_eq!(draft.subject.as_deref(), Some("Nightly Digest"));
     }

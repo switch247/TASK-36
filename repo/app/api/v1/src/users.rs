@@ -54,10 +54,11 @@ pub async fn create_user(
     audit_service: &State<AuditService>,
     ctx: ApiContext,
 ) -> ApiResult<Status> {
-    RbacService::require_manage_users(&ctx.actor.role).map_err(|_| ApiError::forbidden("role cannot manage users"))?;
+    RbacService::require_manage_users(&ctx.actor.role)
+        .map_err(|_| ApiError::forbidden("role cannot manage users"))?;
     let actor_id = actor_user_id(&ctx)?;
-    let normalized_role = normalize_role(&payload.role)
-        .ok_or_else(|| ApiError::bad_request("invalid role"))?;
+    let normalized_role =
+        normalize_role(&payload.role).ok_or_else(|| ApiError::bad_request("invalid role"))?;
     if normalized_role == "Proctor" {
         let mut template_payload = std::collections::HashMap::new();
         template_payload.insert(
@@ -114,7 +115,8 @@ pub async fn list_users(
     audit_service: &State<AuditService>,
     ctx: ApiContext,
 ) -> ApiResult<Json<Vec<UserRow>>> {
-    RbacService::require_manage_users(&ctx.actor.role).map_err(|_| ApiError::forbidden("role cannot view users"))?;
+    RbacService::require_manage_users(&ctx.actor.role)
+        .map_err(|_| ApiError::forbidden("role cannot view users"))?;
 
     let rows = sqlx::query_as::<_, UserRow>(
         "SELECT id, username, role, failed_login_attempts, lockout_until FROM users",
@@ -136,20 +138,24 @@ pub async fn update_user(
     audit_service: &State<AuditService>,
     ctx: ApiContext,
 ) -> ApiResult<Status> {
-    RbacService::require_manage_users(&ctx.actor.role).map_err(|_| ApiError::forbidden("role cannot update users"))?;
+    RbacService::require_manage_users(&ctx.actor.role)
+        .map_err(|_| ApiError::forbidden("role cannot update users"))?;
     let actor_id = actor_user_id(&ctx)?;
 
     let mut touched = false;
 
     if let Some(role) = &payload.role {
-        let normalized_role = normalize_role(role)
-            .ok_or_else(|| ApiError::bad_request("invalid role"))?;
+        let normalized_role =
+            normalize_role(role).ok_or_else(|| ApiError::bad_request("invalid role"))?;
         if normalized_role == "Proctor" {
-            let username: Option<String> = sqlx::query_scalar("SELECT username FROM users WHERE id = ?")
-                .bind(id)
-                .fetch_optional(pool.inner())
-                .await
-                .map_err(|_| ApiError::internal("failed to read user for template validation"))?;
+            let username: Option<String> =
+                sqlx::query_scalar("SELECT username FROM users WHERE id = ?")
+                    .bind(id)
+                    .fetch_optional(pool.inner())
+                    .await
+                    .map_err(|_| {
+                        ApiError::internal("failed to read user for template validation")
+                    })?;
             let Some(username) = username else {
                 return Err(ApiError::not_found("user not found"));
             };
@@ -210,7 +216,8 @@ pub async fn delete_user(
     audit_service: &State<AuditService>,
     ctx: ApiContext,
 ) -> ApiResult<Status> {
-    RbacService::require_manage_users(&ctx.actor.role).map_err(|_| ApiError::forbidden("role cannot delete users"))?;
+    RbacService::require_manage_users(&ctx.actor.role)
+        .map_err(|_| ApiError::forbidden("role cannot delete users"))?;
     let actor_id = actor_user_id(&ctx)?;
 
     let result = sqlx::query("DELETE FROM users WHERE id = ?")

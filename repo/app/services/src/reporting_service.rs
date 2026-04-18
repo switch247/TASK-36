@@ -1,4 +1,4 @@
-﻿use app_models::entities::ReportSeatUtilization;
+use app_models::entities::ReportSeatUtilization;
 use chrono::{Duration, Utc};
 use sqlx::MySqlPool;
 
@@ -69,7 +69,10 @@ impl ReportingService {
         Ok(rows)
     }
 
-    pub async fn near_expiry_assets(&self, within_days: i64) -> anyhow::Result<Vec<ReportNearExpiryAsset>> {
+    pub async fn near_expiry_assets(
+        &self,
+        within_days: i64,
+    ) -> anyhow::Result<Vec<ReportNearExpiryAsset>> {
         let cutoff = Utc::now().date_naive() + Duration::days(within_days.max(1));
         let rows = sqlx::query_as::<_, ReportNearExpiryAsset>(
             r#"
@@ -157,7 +160,10 @@ impl ReportingService {
             });
         }
 
-        for a in incident_assets.into_iter().filter(|x| x.incident_count >= 2) {
+        for a in incident_assets
+            .into_iter()
+            .filter(|x| x.incident_count >= 2)
+        {
             alerts.push(ReportAlert {
                 alert_type: "HighIncident".to_string(),
                 severity: "Medium".to_string(),
@@ -170,7 +176,10 @@ impl ReportingService {
             });
         }
 
-        for r in return_rates.into_iter().filter(|x| x.return_rate_pct < 80.0) {
+        for r in return_rates
+            .into_iter()
+            .filter(|x| x.return_rate_pct < 80.0)
+        {
             alerts.push(ReportAlert {
                 alert_type: "LowReturnRate".to_string(),
                 severity: "Medium".to_string(),

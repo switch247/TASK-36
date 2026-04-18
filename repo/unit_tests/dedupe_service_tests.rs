@@ -7,8 +7,16 @@ mod tests {
     #[test]
     fn guided_merge_match_returns_true_for_same_id() {
         let dob = NaiveDate::from_ymd_opt(2000, 1, 1).unwrap();
-        let left = DedupeCandidate { id: "ID-123", name: "Alice Noor", dob };
-        let right = DedupeCandidate { id: "ID-123", name: "Alice N.", dob };
+        let left = DedupeCandidate {
+            id: "ID-123",
+            name: "Alice Noor",
+            dob,
+        };
+        let right = DedupeCandidate {
+            id: "ID-123",
+            name: "Alice N.",
+            dob,
+        };
         assert!(DedupeService::guided_merge_match(left, right));
     }
 
@@ -21,8 +29,16 @@ mod tests {
     #[test]
     fn should_surface_guided_merge_requires_match_signal() {
         let dob = NaiveDate::from_ymd_opt(2000, 1, 1).unwrap();
-        let left = DedupeCandidate { id: "", name: "Alice Noor", dob };
-        let right = DedupeCandidate { id: "", name: "Completely Different", dob };
+        let left = DedupeCandidate {
+            id: "",
+            name: "Alice Noor",
+            dob,
+        };
+        let right = DedupeCandidate {
+            id: "",
+            name: "Completely Different",
+            dob,
+        };
         let should_surface = DedupeService::should_surface_guided_merge(left, right).unwrap();
         assert!(!should_surface);
     }

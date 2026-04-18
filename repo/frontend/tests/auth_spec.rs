@@ -4,8 +4,8 @@ use frontend::{jwt_role, LoginResponse};
 #[test]
 fn jwt_role_extracts_role_from_frontend_login_model() {
     let header = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(br#"{"alg":"none"}"#);
-    let payload =
-        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(br#"{"sub":"user-1","role":"Coordinator"}"#);
+    let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .encode(br#"{"sub":"user-1","role":"Coordinator"}"#);
     let jwt = format!("{header}.{payload}.signature");
     let session = LoginResponse {
         session_id: "11111111-1111-1111-1111-111111111111".into(),

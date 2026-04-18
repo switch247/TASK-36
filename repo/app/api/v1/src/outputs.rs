@@ -1,12 +1,14 @@
-use chrono::Utc;
 use base64::Engine;
+use chrono::Utc;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::{get, post, State};
 
 use sqlx::MySqlPool;
 
-use app_core::file_policy::{validate_extension, validate_file_count, validate_file_size, CaptureMetadata};
+use app_core::file_policy::{
+    validate_extension, validate_file_count, validate_file_size, CaptureMetadata,
+};
 use app_services::audit_service::AuditService;
 use app_services::messaging_service::MessagingService;
 use app_services::output_service::OutputService;
@@ -91,7 +93,8 @@ pub async fn generate_output(
     audit_service: &State<AuditService>,
     ctx: ApiContext,
 ) -> ApiResult<Json<GenerateOutputResponse>> {
-    RbacService::require_print(&ctx.actor.role).map_err(|_| ApiError::forbidden("role cannot generate output"))?;
+    RbacService::require_print(&ctx.actor.role)
+        .map_err(|_| ApiError::forbidden("role cannot generate output"))?;
     let user_id = actor_user_id(&ctx)?;
 
     let output = output_service
@@ -198,7 +201,16 @@ pub async fn print_admit_cards(
     audit_service: &State<AuditService>,
     ctx: ApiContext,
 ) -> ApiResult<Json<GenerateOutputResponse>> {
-    generate_output(Json(GenerateOutputRequest { output_type: "AdmitCard".to_string(), ..payload.0 }), output_service, audit_service, ctx).await
+    generate_output(
+        Json(GenerateOutputRequest {
+            output_type: "AdmitCard".to_string(),
+            ..payload.0
+        }),
+        output_service,
+        audit_service,
+        ctx,
+    )
+    .await
 }
 
 #[post("/outputs/seating-charts", data = "<payload>")]
@@ -208,7 +220,16 @@ pub async fn print_seating_charts(
     audit_service: &State<AuditService>,
     ctx: ApiContext,
 ) -> ApiResult<Json<GenerateOutputResponse>> {
-    generate_output(Json(GenerateOutputRequest { output_type: "SeatingChart".to_string(), ..payload.0 }), output_service, audit_service, ctx).await
+    generate_output(
+        Json(GenerateOutputRequest {
+            output_type: "SeatingChart".to_string(),
+            ..payload.0
+        }),
+        output_service,
+        audit_service,
+        ctx,
+    )
+    .await
 }
 
 #[post("/outputs/door-signs", data = "<payload>")]
@@ -218,7 +239,16 @@ pub async fn print_door_signs(
     audit_service: &State<AuditService>,
     ctx: ApiContext,
 ) -> ApiResult<Json<GenerateOutputResponse>> {
-    generate_output(Json(GenerateOutputRequest { output_type: "DoorSign".to_string(), ..payload.0 }), output_service, audit_service, ctx).await
+    generate_output(
+        Json(GenerateOutputRequest {
+            output_type: "DoorSign".to_string(),
+            ..payload.0
+        }),
+        output_service,
+        audit_service,
+        ctx,
+    )
+    .await
 }
 
 #[post("/outputs/proctor-packet", data = "<payload>")]
@@ -228,7 +258,16 @@ pub async fn print_proctor_packet(
     audit_service: &State<AuditService>,
     ctx: ApiContext,
 ) -> ApiResult<Json<GenerateOutputResponse>> {
-    generate_output(Json(GenerateOutputRequest { output_type: "ProctorPacket".to_string(), ..payload.0 }), output_service, audit_service, ctx).await
+    generate_output(
+        Json(GenerateOutputRequest {
+            output_type: "ProctorPacket".to_string(),
+            ..payload.0
+        }),
+        output_service,
+        audit_service,
+        ctx,
+    )
+    .await
 }
 
 #[post("/outputs/summary-report", data = "<payload>")]
@@ -238,7 +277,16 @@ pub async fn print_summary_report(
     audit_service: &State<AuditService>,
     ctx: ApiContext,
 ) -> ApiResult<Json<GenerateOutputResponse>> {
-    generate_output(Json(GenerateOutputRequest { output_type: "SummaryReport".to_string(), ..payload.0 }), output_service, audit_service, ctx).await
+    generate_output(
+        Json(GenerateOutputRequest {
+            output_type: "SummaryReport".to_string(),
+            ..payload.0
+        }),
+        output_service,
+        audit_service,
+        ctx,
+    )
+    .await
 }
 
 #[post("/messages/drafts", data = "<payload>")]
@@ -248,7 +296,8 @@ pub async fn create_message_draft(
     audit_service: &State<AuditService>,
     ctx: ApiContext,
 ) -> ApiResult<Status> {
-    RbacService::require_manage_inventory(&ctx.actor.role).map_err(|_| ApiError::forbidden("role cannot create message draft"))?;
+    RbacService::require_manage_inventory(&ctx.actor.role)
+        .map_err(|_| ApiError::forbidden("role cannot create message draft"))?;
     let user_id = actor_user_id(&ctx)?;
 
     messaging_service
@@ -262,7 +311,13 @@ pub async fn create_message_draft(
         .await
         .map_err(|_| ApiError::internal("failed to create message draft"))?;
 
-    audit(audit_service, &ctx, "create_message_draft", "/api/v1/messages/drafts").await;
+    audit(
+        audit_service,
+        &ctx,
+        "create_message_draft",
+        "/api/v1/messages/drafts",
+    )
+    .await;
     Ok(Status::Created)
 }
 
@@ -273,25 +328,37 @@ pub async fn upload_attachment(
     audit_service: &State<AuditService>,
     ctx: ApiContext,
 ) -> ApiResult<Status> {
-    RbacService::require_manage_inventory(&ctx.actor.role).map_err(|_| ApiError::forbidden("role cannot upload attachments"))?;
+    RbacService::require_manage_inventory(&ctx.actor.role)
+        .map_err(|_| ApiError::forbidden("role cannot upload attachments"))?;
     let user_id = actor_user_id(&ctx)?;
     let admin = is_admin(&ctx);
 
-    validate_record_access(pool.inner(), user_id, admin, &payload.record_type, &payload.record_id).await?;
+    validate_record_access(
+        pool.inner(),
+        user_id,
+        admin,
+        &payload.record_type,
+        &payload.record_id,
+    )
+    .await?;
 
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(&payload.bytes_base64)
         .map_err(|_| ApiError::bad_request("bytes_base64 invalid"))?;
 
-    validate_file_size(bytes.len()).map_err(|_| ApiError::bad_request("file exceeds 25MB limit"))?;
-    validate_extension(&payload.extension).map_err(|_| ApiError::bad_request("file extension is not allowed"))?;
+    validate_file_size(bytes.len())
+        .map_err(|_| ApiError::bad_request("file exceeds 25MB limit"))?;
+    validate_extension(&payload.extension)
+        .map_err(|_| ApiError::bad_request("file extension is not allowed"))?;
 
-    let existing_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM attachments WHERE record_type = ? AND record_id = ?")
-        .bind(&payload.record_type)
-        .bind(&payload.record_id)
-        .fetch_one(pool.inner())
-        .await
-        .map_err(|_| ApiError::internal("failed counting attachments"))?;
+    let existing_count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM attachments WHERE record_type = ? AND record_id = ?",
+    )
+    .bind(&payload.record_type)
+    .bind(&payload.record_id)
+    .fetch_one(pool.inner())
+    .await
+    .map_err(|_| ApiError::internal("failed counting attachments"))?;
 
     validate_file_count((existing_count + 1) as usize)
         .map_err(|_| ApiError::bad_request("Maximum 10 files per record exceeded"))?;
@@ -309,7 +376,9 @@ pub async fn upload_attachment(
     .map_err(|_| ApiError::internal("failed duplicate fingerprint check"))?;
 
     if duplicate_count > 0 {
-        return Err(ApiError::conflict("duplicate attachment fingerprint for this record"));
+        return Err(ApiError::conflict(
+            "duplicate attachment fingerprint for this record",
+        ));
     }
 
     let captured_at = Utc::now();
@@ -348,7 +417,13 @@ pub async fn upload_attachment(
         )
         .await;
 
-    audit(audit_service, &ctx, "upload_attachment", "/api/v1/attachments").await;
+    audit(
+        audit_service,
+        &ctx,
+        "upload_attachment",
+        "/api/v1/attachments",
+    )
+    .await;
     Ok(Status::Created)
 }
 
@@ -395,7 +470,13 @@ pub async fn list_attachments(
         .await
         .map_err(|_| ApiError::internal("failed to list attachments"))?;
 
-    audit(audit_service, &ctx, "list_attachments", "/api/v1/attachments").await;
+    audit(
+        audit_service,
+        &ctx,
+        "list_attachments",
+        "/api/v1/attachments",
+    )
+    .await;
     Ok(Json(rows))
 }
 
@@ -434,7 +515,13 @@ pub async fn get_attachment(
         return Err(ApiError::not_found("attachment not found"));
     };
 
-    audit(audit_service, &ctx, "get_attachment", "/api/v1/attachments/{id}").await;
+    audit(
+        audit_service,
+        &ctx,
+        "get_attachment",
+        "/api/v1/attachments/{id}",
+    )
+    .await;
     Ok(Json(AttachmentFileResponse {
         id: attachment_id,
         file_name,
@@ -481,13 +568,15 @@ async fn validate_record_access(
                     .map_err(|_| ApiError::internal("failed room ownership check"))?
                     .is_some()
             } else {
-                sqlx::query_scalar::<_, i64>("SELECT 1 FROM rooms WHERE id = ? AND created_by = ? LIMIT 1")
-                    .bind(record_id)
-                    .bind(user_id)
-                    .fetch_optional(pool)
-                    .await
-                    .map_err(|_| ApiError::internal("failed room ownership check"))?
-                    .is_some()
+                sqlx::query_scalar::<_, i64>(
+                    "SELECT 1 FROM rooms WHERE id = ? AND created_by = ? LIMIT 1",
+                )
+                .bind(record_id)
+                .bind(user_id)
+                .fetch_optional(pool)
+                .await
+                .map_err(|_| ApiError::internal("failed room ownership check"))?
+                .is_some()
             }
         }
         "session" | "sessions" => {
@@ -519,13 +608,15 @@ async fn validate_record_access(
                     .map_err(|_| ApiError::internal("failed asset ownership check"))?
                     .is_some()
             } else {
-                sqlx::query_scalar::<_, i64>("SELECT 1 FROM assets WHERE id = ? AND created_by = ? LIMIT 1")
-                    .bind(record_id)
-                    .bind(user_id)
-                    .fetch_optional(pool)
-                    .await
-                    .map_err(|_| ApiError::internal("failed asset ownership check"))?
-                    .is_some()
+                sqlx::query_scalar::<_, i64>(
+                    "SELECT 1 FROM assets WHERE id = ? AND created_by = ? LIMIT 1",
+                )
+                .bind(record_id)
+                .bind(user_id)
+                .fetch_optional(pool)
+                .await
+                .map_err(|_| ApiError::internal("failed asset ownership check"))?
+                .is_some()
             }
         }
         _ => return Err(ApiError::bad_request("unsupported attachment record_type")),

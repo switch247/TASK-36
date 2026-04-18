@@ -1,4 +1,4 @@
-﻿use chrono::NaiveDate;
+use chrono::NaiveDate;
 use regex::Regex;
 
 use crate::errors::CoreError;
@@ -12,13 +12,21 @@ pub fn standardize_units(value: f64, unit: &str) -> Result<(f64, String), CoreEr
         "kg" | "kilogram" | "kilograms" => Ok((value, "kg".to_string())),
         "g" | "gram" | "grams" => Ok((value / 1000.0, "kg".to_string())),
         "lb" | "lbs" | "pound" | "pounds" => Ok((value * 0.45359237, "kg".to_string())),
-        _ => Err(CoreError::NormalizationError(format!("unsupported unit: {unit}"))),
+        _ => Err(CoreError::NormalizationError(format!(
+            "unsupported unit: {unit}"
+        ))),
     }
 }
 
-pub fn standardize_currency_to_usd(amount: f64, currency: &str, fx_rate_to_usd: f64) -> Result<String, CoreError> {
+pub fn standardize_currency_to_usd(
+    amount: f64,
+    currency: &str,
+    fx_rate_to_usd: f64,
+) -> Result<String, CoreError> {
     if fx_rate_to_usd <= 0.0 {
-        return Err(CoreError::NormalizationError("fx_rate_to_usd must be positive".to_string()));
+        return Err(CoreError::NormalizationError(
+            "fx_rate_to_usd must be positive".to_string(),
+        ));
     }
 
     let normalized_currency = currency.trim().to_uppercase();
@@ -32,7 +40,8 @@ pub fn standardize_currency_to_usd(amount: f64, currency: &str, fx_rate_to_usd: 
 }
 
 pub fn normalize_mmddyyyy(input: &str) -> Result<String, CoreError> {
-    let re = Regex::new(r"^(\d{2})/(\d{2})/(\d{4})$").map_err(|e| CoreError::NormalizationError(e.to_string()))?;
+    let re = Regex::new(r"^(\d{2})/(\d{2})/(\d{4})$")
+        .map_err(|e| CoreError::NormalizationError(e.to_string()))?;
     let captures = re
         .captures(input)
         .ok_or_else(|| CoreError::NormalizationError("date must match MM/DD/YYYY".to_string()))?;

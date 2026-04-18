@@ -61,7 +61,9 @@ mod tests {
         let err = service
             .validate_actor_jwt_only("not-a-real-jwt")
             .expect_err("invalid token must fail");
-        assert!(err.to_string().contains(&CoreError::InvalidToken.to_string()));
+        assert!(err
+            .to_string()
+            .contains(&CoreError::InvalidToken.to_string()));
     }
 
     #[test]
@@ -71,6 +73,9 @@ mod tests {
 
         assert_eq!(key_a.len(), 32);
         assert_eq!(key_b.len(), 32);
-        assert_ne!(key_a, key_b, "generated keys should not repeat deterministically");
+        assert_ne!(
+            key_a, key_b,
+            "generated keys should not repeat deterministically"
+        );
     }
 }

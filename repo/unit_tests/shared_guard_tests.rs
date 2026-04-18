@@ -29,7 +29,9 @@ mod tests {
             .or_else(|| env::var("JWT_SECRET").ok())
             .unwrap_or_else(|| "test-jwt-secret-change-me".to_string());
         let auth_service = AuthService::new(pool, jwt_secret);
-        let rocket = rocket::build().manage(auth_service).mount("/", rocket::routes![whoami]);
+        let rocket = rocket::build()
+            .manage(auth_service)
+            .mount("/", rocket::routes![whoami]);
         rocket::local::asynchronous::Client::tracked(rocket)
             .await
             .expect("tracked client")
@@ -43,7 +45,10 @@ mod tests {
         let missing = client.get("/whoami").dispatch().await;
         assert_eq!(missing.status(), Status::Unauthorized);
         let body: Value = missing.into_json().await.expect("json");
-        assert!(body["message"].as_str().unwrap_or_default().contains("missing credentials"));
+        assert!(body["message"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("missing credentials"));
 
         let malformed = client
             .get("/whoami")
@@ -52,7 +57,10 @@ mod tests {
             .await;
         assert_eq!(malformed.status(), Status::Unauthorized);
         let body: Value = malformed.into_json().await.expect("json");
-        assert!(body["message"].as_str().unwrap_or_default().contains("invalid authorization scheme"));
+        assert!(body["message"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("invalid authorization scheme"));
     }
 
     #[rocket::async_test]
@@ -60,7 +68,8 @@ mod tests {
         let app = common::setup_app().await.expect("setup");
         let client = guarded_client(app.pool.clone()).await;
 
-        let (status, body) = common::login(&app.client, common::ADMIN_USERNAME, common::ADMIN_PASSWORD).await;
+        let (status, body) =
+            common::login(&app.client, common::ADMIN_USERNAME, common::ADMIN_PASSWORD).await;
         assert_eq!(status, Status::Ok);
         let body = body.expect("login body");
         let session_id = body["session_id"].as_str().expect("session").to_string();
@@ -114,6 +123,9 @@ mod tests {
         assert_eq!(invalid.status(), Status::Unauthorized);
         let body: Value = invalid.into_json().await.expect("json");
         assert_eq!(body["code"], 401);
-        assert!(body["message"].as_str().unwrap_or_default().contains("invalid session"));
+        assert!(body["message"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("invalid session"));
     }
 }

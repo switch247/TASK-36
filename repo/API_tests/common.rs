@@ -5,10 +5,10 @@ use std::time::Duration;
 use anyhow::Context;
 use rocket::http::{Header, Status};
 use rocket::local::asynchronous::Client;
+use rocket::tokio::sync::{Mutex, MutexGuard};
 use serde_json::Value;
 use sqlx::mysql::MySqlPoolOptions;
 use sqlx::MySqlPool;
-use rocket::tokio::sync::{Mutex, MutexGuard};
 
 use app_api_v1::routes_v1;
 use app_services::audit_service::AuditService;
@@ -71,7 +71,9 @@ pub async fn setup_app() -> anyhow::Result<TestApp> {
     let database_url = env::var("TEST_DATABASE_URL")
         .ok()
         .or_else(|| env::var("DATABASE_URL").ok())
-        .unwrap_or_else(|| "mysql://eagle:change_this_user_password@localhost:3306/eagle_exam".to_string());
+        .unwrap_or_else(|| {
+            "mysql://eagle:change_this_user_password@localhost:3306/eagle_exam".to_string()
+        });
     if database_url.contains("change_this_user_password") {
         return Err(anyhow::anyhow!(
             "TEST_DATABASE_URL (or DATABASE_URL) must point to a reachable MySQL instance before running integration tests",
@@ -83,7 +85,8 @@ pub async fn setup_app() -> anyhow::Result<TestApp> {
         .or_else(|| env::var("JWT_SECRET").ok())
         .unwrap_or_else(|| "test-jwt-secret-change-me".to_string());
 
-    let (admin_database_url, test_database_url, test_database_name) = derive_test_db_urls(&database_url)?;
+    let (admin_database_url, test_database_url, test_database_name) =
+        derive_test_db_urls(&database_url)?;
 
     let admin_pool = MySqlPoolOptions::new()
         .max_connections(1)
@@ -242,7 +245,13 @@ pub async fn user_id_for(pool: &MySqlPool, username: &str) -> String {
 
 /// Insert a room directly via SQL owned by the given user (coordinator or admin).
 #[allow(dead_code)]
-pub async fn factory_room(pool: &MySqlPool, id: &str, capacity: i32, location: &str, owner_id: &str) {
+pub async fn factory_room(
+    pool: &MySqlPool,
+    id: &str,
+    capacity: i32,
+    location: &str,
+    owner_id: &str,
+) {
     sqlx::query("INSERT INTO rooms (id, capacity, location, created_by) VALUES (?, ?, ?, ?)")
         .bind(id)
         .bind(capacity)
@@ -317,7 +326,11 @@ pub async fn factory_candidate_http(
     let resp = attach_auth(client.post("/api/v1/candidates").json(&payload), headers)
         .dispatch()
         .await;
-    assert_eq!(resp.status(), Status::Created, "factory_candidate_http failed for {id}");
+    assert_eq!(
+        resp.status(),
+        Status::Created,
+        "factory_candidate_http failed for {id}"
+    );
 }
 
 /// Create a second user for cross-ownership tests. Returns (user_id, username).
@@ -353,7 +366,9 @@ pub async fn factory_user(
 pub fn assert_field_eq(body: &Value, path: &str, expected: Value) {
     let mut cur = body;
     for seg in path.split('.') {
-        cur = cur.get(seg).unwrap_or_else(|| panic!("missing field path '{path}' in body {body}"));
+        cur = cur
+            .get(seg)
+            .unwrap_or_else(|| panic!("missing field path '{path}' in body {body}"));
     }
     assert_eq!(cur, &expected, "path={path} body={body}");
 }
@@ -440,11 +455,15 @@ async fn reset_data(pool: &MySqlPool) -> anyhow::Result<()> {
         "TRUNCATE TABLE users",
     ];
 
-    sqlx::query("SET FOREIGN_KEY_CHECKS = 0").execute(pool).await?;
+    sqlx::query("SET FOREIGN_KEY_CHECKS = 0")
+        .execute(pool)
+        .await?;
     for stmt in resets {
         sqlx::query(stmt).execute(pool).await?;
     }
-    sqlx::query("SET FOREIGN_KEY_CHECKS = 1").execute(pool).await?;
+    sqlx::query("SET FOREIGN_KEY_CHECKS = 1")
+        .execute(pool)
+        .await?;
 
     Ok(())
 }

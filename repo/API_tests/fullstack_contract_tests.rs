@@ -29,14 +29,8 @@ async fn frontend_models_deserialize_from_live_backend_http_responses() {
     common::factory_room(&app.pool, "room-fe", 42, "Frontend Hall", &coord_id).await;
     common::factory_session(&app.pool, "sess-fe", "base-template", 90, &coord_id).await;
     common::factory_asset(&app.pool, "asset-fe", "BOOK-FE", "sess-fe", &coord_id).await;
-    common::factory_candidate_http(
-        &app.client,
-        &headers,
-        "cand-fe",
-        "ID-FE-001",
-        "BAR-FE-001",
-    )
-    .await;
+    common::factory_candidate_http(&app.client, &headers, "cand-fe", "ID-FE-001", "BAR-FE-001")
+        .await;
 
     let output_resp = attach_auth(
         app.client.post("/api/v1/outputs").json(&json!({
@@ -66,11 +60,15 @@ async fn frontend_models_deserialize_from_live_backend_http_responses() {
     .await;
     assert_eq!(attachment_resp.status(), Status::Created);
 
-    let candidates_resp = attach_auth(app.client.get("/api/v1/candidates?page=1&limit=50"), &headers)
-        .dispatch()
-        .await;
+    let candidates_resp = attach_auth(
+        app.client.get("/api/v1/candidates?page=1&limit=50"),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(candidates_resp.status(), Status::Ok);
-    let candidates: Vec<frontend::CandidateRow> = candidates_resp.into_json().await.expect("candidate rows");
+    let candidates: Vec<frontend::CandidateRow> =
+        candidates_resp.into_json().await.expect("candidate rows");
     assert!(candidates.iter().any(|row| row.id == "cand-fe"));
 
     let rooms_resp = attach_auth(app.client.get("/api/v1/rooms?page=1&limit=50"), &headers)
@@ -84,7 +82,8 @@ async fn frontend_models_deserialize_from_live_backend_http_responses() {
         .dispatch()
         .await;
     assert_eq!(sessions_resp.status(), Status::Ok);
-    let sessions: Vec<frontend::SessionRow> = sessions_resp.into_json().await.expect("session rows");
+    let sessions: Vec<frontend::SessionRow> =
+        sessions_resp.into_json().await.expect("session rows");
     assert!(sessions.iter().any(|row| row.id == "sess-fe"));
 
     let assets_resp = attach_auth(app.client.get("/api/v1/assets?page=1&limit=50"), &headers)
@@ -102,7 +101,8 @@ async fn frontend_models_deserialize_from_live_backend_http_responses() {
     assert!(outputs.iter().any(|row| row.session_id == "sess-fe"));
 
     let attachments_resp = attach_auth(
-        app.client.get("/api/v1/attachments?record_type=candidate&record_id=cand-fe"),
+        app.client
+            .get("/api/v1/attachments?record_type=candidate&record_id=cand-fe"),
         &headers,
     )
     .dispatch()
@@ -116,8 +116,11 @@ async fn frontend_models_deserialize_from_live_backend_http_responses() {
         .dispatch()
         .await;
     assert_eq!(templates_resp.status(), Status::Ok);
-    let templates: Vec<frontend::TemplateRow> = templates_resp.into_json().await.expect("template rows");
-    assert!(templates.iter().any(|row| row.template_id == "base-template"));
+    let templates: Vec<frontend::TemplateRow> =
+        templates_resp.into_json().await.expect("template rows");
+    assert!(templates
+        .iter()
+        .any(|row| row.template_id == "base-template"));
 }
 
 #[rocket::async_test]
@@ -128,7 +131,14 @@ async fn frontend_report_models_and_scan_model_match_backend_payloads() {
 
     common::factory_room(&app.pool, "room-report-fe", 35, "Report Hall", &coord_id).await;
     common::factory_session(&app.pool, "sess-report-fe", "Template A", 60, &coord_id).await;
-    common::factory_asset(&app.pool, "asset-report-fe", "BOOK-REPORT-FE", "sess-report-fe", &coord_id).await;
+    common::factory_asset(
+        &app.pool,
+        "asset-report-fe",
+        "BOOK-REPORT-FE",
+        "sess-report-fe",
+        &coord_id,
+    )
+    .await;
     sqlx::query("UPDATE assets SET tracking_status = 'Collected' WHERE id = 'asset-report-fe'")
         .execute(&app.pool)
         .await
@@ -154,19 +164,20 @@ async fn frontend_report_models_and_scan_model_match_backend_payloads() {
     .expect("incident rows");
     assert!(incident_rows.iter().all(|row| !row.session_id.is_empty()));
 
-    let return_rows: Vec<frontend::ReturnRateRow> = attach_auth(
-        app.client.get("/api/v1/operations/return-rates"),
-        &headers,
-    )
-    .dispatch()
-    .await
-    .into_json()
-    .await
-    .expect("return rows");
-    assert!(return_rows.iter().any(|row| row.session_id == "sess-report-fe"));
+    let return_rows: Vec<frontend::ReturnRateRow> =
+        attach_auth(app.client.get("/api/v1/operations/return-rates"), &headers)
+            .dispatch()
+            .await
+            .into_json()
+            .await
+            .expect("return rows");
+    assert!(return_rows
+        .iter()
+        .any(|row| row.session_id == "sess-report-fe"));
 
     let inventory_rows: Vec<frontend::MaterialInventoryRow> = attach_auth(
-        app.client.get("/api/v1/operations/materials-inventory?page=1&limit=100"),
+        app.client
+            .get("/api/v1/operations/materials-inventory?page=1&limit=100"),
         &headers,
     )
     .dispatch()
@@ -174,10 +185,13 @@ async fn frontend_report_models_and_scan_model_match_backend_payloads() {
     .into_json()
     .await
     .expect("inventory rows");
-    assert!(inventory_rows.iter().any(|row| row.asset_id == "asset-report-fe"));
+    assert!(inventory_rows
+        .iter()
+        .any(|row| row.asset_id == "asset-report-fe"));
 
     let alert_rows: Vec<frontend::AlertRow> = attach_auth(
-        app.client.get("/api/v1/operations/alerts?within_days=30&page=1&limit=100"),
+        app.client
+            .get("/api/v1/operations/alerts?within_days=30&page=1&limit=100"),
         &headers,
     )
     .dispatch()
@@ -226,7 +240,14 @@ async fn frontend_dashboard_summary_model_can_be_composed_from_live_endpoints() 
 
     common::factory_room(&app.pool, "room-dash-fe", 30, "Dash Hall", &coord_id).await;
     common::factory_session(&app.pool, "sess-dash-fe", "Template A", 60, &coord_id).await;
-    common::factory_asset(&app.pool, "asset-dash-fe", "BOOK-DASH-FE", "sess-dash-fe", &coord_id).await;
+    common::factory_asset(
+        &app.pool,
+        "asset-dash-fe",
+        "BOOK-DASH-FE",
+        "sess-dash-fe",
+        &coord_id,
+    )
+    .await;
     common::factory_candidate_http(
         &app.client,
         &headers,
@@ -261,15 +282,13 @@ async fn frontend_dashboard_summary_model_can_be_composed_from_live_endpoints() 
     .into_json()
     .await
     .expect("candidate rows");
-    let rooms: Vec<frontend::RoomRow> = attach_auth(
-        app.client.get("/api/v1/rooms?page=1&limit=200"),
-        &headers,
-    )
-    .dispatch()
-    .await
-    .into_json()
-    .await
-    .expect("room rows");
+    let rooms: Vec<frontend::RoomRow> =
+        attach_auth(app.client.get("/api/v1/rooms?page=1&limit=200"), &headers)
+            .dispatch()
+            .await
+            .into_json()
+            .await
+            .expect("room rows");
     let sessions: Vec<frontend::SessionRow> = attach_auth(
         app.client.get("/api/v1/sessions?page=1&limit=200"),
         &headers,
@@ -279,21 +298,21 @@ async fn frontend_dashboard_summary_model_can_be_composed_from_live_endpoints() 
     .into_json()
     .await
     .expect("session rows");
-    let outputs: Vec<frontend::OutputRow> = attach_auth(
-        app.client.get("/api/v1/outputs?page=1&limit=200"),
-        &headers,
-    )
-    .dispatch()
-    .await
-    .into_json()
-    .await
-    .expect("output rows");
+    let outputs: Vec<frontend::OutputRow> =
+        attach_auth(app.client.get("/api/v1/outputs?page=1&limit=200"), &headers)
+            .dispatch()
+            .await
+            .into_json()
+            .await
+            .expect("output rows");
 
     let summary = frontend::DashboardSummary {
         total_candidates: candidates.len() as i64,
         total_rooms: rooms.len() as i64,
         total_sessions_this_week: sessions.len() as i64,
-        seat_utilization_count: legacy["seat_utilization_count"].as_u64().unwrap_or_default() as usize,
+        seat_utilization_count: legacy["seat_utilization_count"]
+            .as_u64()
+            .unwrap_or_default() as usize,
         near_expiry_count: legacy["near_expiry_count"].as_u64().unwrap_or_default() as usize,
         incident_rate_count: legacy["incident_rate_count"].as_u64().unwrap_or_default() as usize,
         upcoming_sessions: sessions

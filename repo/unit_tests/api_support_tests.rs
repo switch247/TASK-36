@@ -20,7 +20,10 @@ mod tests {
         let err = validate_session_duration(5).expect_err("duration must fail");
         assert_eq!(err.status.code, 400);
         assert_eq!(err.body.message, "validation failed");
-        assert_eq!(err.body.details.as_ref().unwrap()["field"], "duration_minutes");
+        assert_eq!(
+            err.body.details.as_ref().unwrap()["field"],
+            "duration_minutes"
+        );
     }
 
     #[test]

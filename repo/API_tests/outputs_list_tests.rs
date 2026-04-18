@@ -43,11 +43,13 @@ async fn print_seating_charts_endpoint_returns_seating_chart() {
     let session_id = setup_session_for_print(&app).await;
 
     let resp = attach_auth(
-        app.client.post("/api/v1/outputs/seating-charts").json(&json!({
-            "session_id": session_id,
-            "output_type": "x",
-            "mode": "Draft"
-        })),
+        app.client
+            .post("/api/v1/outputs/seating-charts")
+            .json(&json!({
+                "session_id": session_id,
+                "output_type": "x",
+                "mode": "Draft"
+            })),
         &headers,
     )
     .dispatch()
@@ -85,11 +87,13 @@ async fn print_proctor_packet_endpoint_returns_proctor_packet() {
     let session_id = setup_session_for_print(&app).await;
 
     let resp = attach_auth(
-        app.client.post("/api/v1/outputs/proctor-packet").json(&json!({
-            "session_id": session_id,
-            "output_type": "x",
-            "mode": "Draft"
-        })),
+        app.client
+            .post("/api/v1/outputs/proctor-packet")
+            .json(&json!({
+                "session_id": session_id,
+                "output_type": "x",
+                "mode": "Draft"
+            })),
         &headers,
     )
     .dispatch()
@@ -106,11 +110,13 @@ async fn print_summary_report_endpoint_returns_summary_report() {
     let session_id = setup_session_for_print(&app).await;
 
     let resp = attach_auth(
-        app.client.post("/api/v1/outputs/summary-report").json(&json!({
-            "session_id": session_id,
-            "output_type": "x",
-            "mode": "Draft"
-        })),
+        app.client
+            .post("/api/v1/outputs/summary-report")
+            .json(&json!({
+                "session_id": session_id,
+                "output_type": "x",
+                "mode": "Draft"
+            })),
         &headers,
     )
     .dispatch()

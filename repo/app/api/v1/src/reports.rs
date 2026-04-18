@@ -6,7 +6,10 @@ use sqlx::MySqlPool;
 use app_models::entities::ReportSeatUtilization;
 use app_services::audit_service::AuditService;
 use app_services::rbac_service::RbacService;
-use app_services::reporting_service::{ReportAlert, ReportIncidentRate, ReportMaterialInventory, ReportNearExpiryAsset, ReportReturnRate, ReportingService};
+use app_services::reporting_service::{
+    ReportAlert, ReportIncidentRate, ReportMaterialInventory, ReportNearExpiryAsset,
+    ReportReturnRate, ReportingService,
+};
 
 use crate::errors::{ApiError, ApiResult};
 use crate::pagination::PaginationParams;
@@ -62,32 +65,56 @@ pub async fn reports_dashboard(
     RbacService::require_reporting(&ctx.actor.role)
         .map_err(|_| ApiError::forbidden("role cannot view dashboard"))?;
 
-    let seat = reporting_service.seat_utilization().await.unwrap_or_else(|err| {
-        tracing::error!(error = %err, "reports_dashboard seat utilization query failed");
-        Vec::new()
-    });
-    let expiry = reporting_service.near_expiry_assets(30).await.unwrap_or_else(|err| {
-        tracing::error!(error = %err, "reports_dashboard near expiry query failed");
-        Vec::new()
-    });
-    let incidents = reporting_service.incident_rates().await.unwrap_or_else(|err| {
-        tracing::error!(error = %err, "reports_dashboard incident rates query failed");
-        Vec::new()
-    });
-    let returns = reporting_service.return_rates().await.unwrap_or_else(|err| {
-        tracing::error!(error = %err, "reports_dashboard return rates query failed");
-        Vec::new()
-    });
-    let materials = reporting_service.materials_inventory().await.unwrap_or_else(|err| {
-        tracing::error!(error = %err, "reports_dashboard materials inventory query failed");
-        Vec::new()
-    });
-    let alerts = reporting_service.operations_alerts(30).await.unwrap_or_else(|err| {
-        tracing::error!(error = %err, "reports_dashboard alerts query failed");
-        Vec::new()
-    });
+    let seat = reporting_service
+        .seat_utilization()
+        .await
+        .unwrap_or_else(|err| {
+            tracing::error!(error = %err, "reports_dashboard seat utilization query failed");
+            Vec::new()
+        });
+    let expiry = reporting_service
+        .near_expiry_assets(30)
+        .await
+        .unwrap_or_else(|err| {
+            tracing::error!(error = %err, "reports_dashboard near expiry query failed");
+            Vec::new()
+        });
+    let incidents = reporting_service
+        .incident_rates()
+        .await
+        .unwrap_or_else(|err| {
+            tracing::error!(error = %err, "reports_dashboard incident rates query failed");
+            Vec::new()
+        });
+    let returns = reporting_service
+        .return_rates()
+        .await
+        .unwrap_or_else(|err| {
+            tracing::error!(error = %err, "reports_dashboard return rates query failed");
+            Vec::new()
+        });
+    let materials = reporting_service
+        .materials_inventory()
+        .await
+        .unwrap_or_else(|err| {
+            tracing::error!(error = %err, "reports_dashboard materials inventory query failed");
+            Vec::new()
+        });
+    let alerts = reporting_service
+        .operations_alerts(30)
+        .await
+        .unwrap_or_else(|err| {
+            tracing::error!(error = %err, "reports_dashboard alerts query failed");
+            Vec::new()
+        });
 
-    audit(audit_service, &ctx, "reports_dashboard", "/api/v1/reports/dashboard").await;
+    audit(
+        audit_service,
+        &ctx,
+        "reports_dashboard",
+        "/api/v1/reports/dashboard",
+    )
+    .await;
     Ok(Json(DashboardSummary {
         seat_utilization_count: seat.len(),
         near_expiry_count: expiry.len(),
@@ -151,14 +178,32 @@ pub async fn dashboard_summary(
     .await
     .unwrap_or_default();
 
-    let seat = reporting_service.seat_utilization().await.unwrap_or_default();
-    let expiry = reporting_service.near_expiry_assets(30).await.unwrap_or_default();
+    let seat = reporting_service
+        .seat_utilization()
+        .await
+        .unwrap_or_default();
+    let expiry = reporting_service
+        .near_expiry_assets(30)
+        .await
+        .unwrap_or_default();
     let incidents = reporting_service.incident_rates().await.unwrap_or_default();
     let returns = reporting_service.return_rates().await.unwrap_or_default();
-    let materials = reporting_service.materials_inventory().await.unwrap_or_default();
-    let alerts = reporting_service.operations_alerts(30).await.unwrap_or_default();
+    let materials = reporting_service
+        .materials_inventory()
+        .await
+        .unwrap_or_default();
+    let alerts = reporting_service
+        .operations_alerts(30)
+        .await
+        .unwrap_or_default();
 
-    audit(audit_service, &ctx, "dashboard_summary", "/api/v1/dashboard/summary").await;
+    audit(
+        audit_service,
+        &ctx,
+        "dashboard_summary",
+        "/api/v1/dashboard/summary",
+    )
+    .await;
     Ok(Json(DashboardSummaryV2 {
         total_candidates,
         total_rooms,
@@ -202,7 +247,10 @@ pub async fn seat_utilization(
     })?;
 
     if let Some(filter) = params.filter.as_deref().map(str::to_lowercase) {
-        rows.retain(|r| r.room_id.to_lowercase().contains(&filter) || r.location.to_lowercase().contains(&filter));
+        rows.retain(|r| {
+            r.room_id.to_lowercase().contains(&filter)
+                || r.location.to_lowercase().contains(&filter)
+        });
     }
 
     let asc = params.sort_order_sql() == "ASC";
@@ -222,7 +270,13 @@ pub async fn seat_utilization(
         .take(params.limit() as usize)
         .collect();
 
-    audit(audit_service, &ctx, "seat_utilization", "/api/v1/operations/seat-utilization").await;
+    audit(
+        audit_service,
+        &ctx,
+        "seat_utilization",
+        "/api/v1/operations/seat-utilization",
+    )
+    .await;
     Ok(Json(rows))
 }
 
@@ -248,13 +302,18 @@ pub async fn near_expiry_alerts(
         filter,
     };
 
-    let mut rows = reporting_service.near_expiry_assets(30).await.map_err(|err| {
-        tracing::error!(error = %err, "near_expiry_alerts query failed");
-        ApiError::internal("failed to load near expiry alerts")
-    })?;
+    let mut rows = reporting_service
+        .near_expiry_assets(30)
+        .await
+        .map_err(|err| {
+            tracing::error!(error = %err, "near_expiry_alerts query failed");
+            ApiError::internal("failed to load near expiry alerts")
+        })?;
 
     if let Some(filter) = params.filter.as_deref().map(str::to_lowercase) {
-        rows.retain(|r| r.id.to_lowercase().contains(&filter) || r.booklet_code.to_lowercase().contains(&filter));
+        rows.retain(|r| {
+            r.id.to_lowercase().contains(&filter) || r.booklet_code.to_lowercase().contains(&filter)
+        });
     }
 
     let asc = params.sort_order_sql() == "ASC";
@@ -305,10 +364,13 @@ pub async fn incident_rates(
         filter,
     };
 
-    let mut rows = reporting_service.incident_rates().await.unwrap_or_else(|err| {
-        tracing::error!(error = %err, "incident_rates query failed");
-        Vec::new()
-    });
+    let mut rows = reporting_service
+        .incident_rates()
+        .await
+        .unwrap_or_else(|err| {
+            tracing::error!(error = %err, "incident_rates query failed");
+            Vec::new()
+        });
 
     if let Some(filter) = params.filter.as_deref().map(str::to_lowercase) {
         rows.retain(|r| r.session_id.to_lowercase().contains(&filter));
@@ -329,7 +391,13 @@ pub async fn incident_rates(
         .take(params.limit() as usize)
         .collect();
 
-    audit(audit_service, &ctx, "incident_rates", "/api/v1/operations/incident-rates").await;
+    audit(
+        audit_service,
+        &ctx,
+        "incident_rates",
+        "/api/v1/operations/incident-rates",
+    )
+    .await;
     Ok(Json(rows))
 }
 
@@ -355,10 +423,13 @@ pub async fn return_rates(
         filter,
     };
 
-    let mut rows = reporting_service.return_rates().await.unwrap_or_else(|err| {
-        tracing::error!(error = %err, "return_rates query failed");
-        Vec::new()
-    });
+    let mut rows = reporting_service
+        .return_rates()
+        .await
+        .unwrap_or_else(|err| {
+            tracing::error!(error = %err, "return_rates query failed");
+            Vec::new()
+        });
 
     if let Some(filter) = params.filter.as_deref().map(str::to_lowercase) {
         rows.retain(|r| r.session_id.to_lowercase().contains(&filter));
@@ -368,7 +439,9 @@ pub async fn return_rates(
     match params.sort_by.as_deref() {
         Some("total_assets") => rows.sort_by_key(|r| r.total_assets),
         Some("returned_assets") => rows.sort_by_key(|r| r.returned_assets),
-        Some("return_rate_pct") => rows.sort_by(|a, b| a.return_rate_pct.total_cmp(&b.return_rate_pct)),
+        Some("return_rate_pct") => {
+            rows.sort_by(|a, b| a.return_rate_pct.total_cmp(&b.return_rate_pct))
+        }
         _ => rows.sort_by(|a, b| a.session_id.cmp(&b.session_id)),
     }
     if !asc {
@@ -381,7 +454,13 @@ pub async fn return_rates(
         .take(params.limit() as usize)
         .collect();
 
-    audit(audit_service, &ctx, "return_rates", "/api/v1/operations/return-rates").await;
+    audit(
+        audit_service,
+        &ctx,
+        "return_rates",
+        "/api/v1/operations/return-rates",
+    )
+    .await;
     Ok(Json(rows))
 }
 
@@ -406,10 +485,13 @@ pub async fn materials_inventory(
         filter,
     };
 
-    let mut rows = reporting_service.materials_inventory().await.unwrap_or_else(|err| {
-        tracing::error!(error = %err, "materials_inventory query failed");
-        Vec::new()
-    });
+    let mut rows = reporting_service
+        .materials_inventory()
+        .await
+        .unwrap_or_else(|err| {
+            tracing::error!(error = %err, "materials_inventory query failed");
+            Vec::new()
+        });
 
     if let Some(filter) = params.filter.as_deref().map(str::to_lowercase) {
         rows.retain(|r| {
@@ -480,7 +562,13 @@ pub async fn operations_alerts(
         .take(params.limit() as usize)
         .collect();
 
-    audit(audit_service, &ctx, "operations_alerts", "/api/v1/operations/alerts").await;
+    audit(
+        audit_service,
+        &ctx,
+        "operations_alerts",
+        "/api/v1/operations/alerts",
+    )
+    .await;
     Ok(Json(rows))
 }
 
@@ -493,11 +581,20 @@ pub async fn incident_rates_fallback(
     RbacService::require_reporting(&ctx.actor.role)
         .map_err(|_| ApiError::forbidden("role cannot view incident rates"))?;
 
-    let rows = reporting_service.incident_rates().await.unwrap_or_else(|err| {
-        tracing::error!(error = %err, "incident_rates_fallback query failed");
-        Vec::new()
-    });
+    let rows = reporting_service
+        .incident_rates()
+        .await
+        .unwrap_or_else(|err| {
+            tracing::error!(error = %err, "incident_rates_fallback query failed");
+            Vec::new()
+        });
 
-    audit(audit_service, &ctx, "incident_rates", "/api/v1/operations/incident-rates").await;
+    audit(
+        audit_service,
+        &ctx,
+        "incident_rates",
+        "/api/v1/operations/incident-rates",
+    )
+    .await;
     Ok(Json(rows))
 }

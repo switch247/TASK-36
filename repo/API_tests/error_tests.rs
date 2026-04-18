@@ -30,7 +30,11 @@ async fn seed_candidate_for_attachment(
 async fn missing_auth_returns_401() {
     let app = setup_app().await.expect("Failed to initialize test app");
 
-    let response = app.client.get("/api/v1/operations/incident-rates").dispatch().await;
+    let response = app
+        .client
+        .get("/api/v1/operations/incident-rates")
+        .dispatch()
+        .await;
     assert_eq!(response.status(), Status::Unauthorized);
 }
 
@@ -48,7 +52,10 @@ async fn forbidden_role_returns_403() {
     assert_eq!(response.status(), Status::Forbidden);
     let body: serde_json::Value = response.into_json().await.expect("error body");
     assert_eq!(body["code"].as_u64(), Some(403));
-    assert!(body["message"].as_str().unwrap_or("").len() > 0, "forbidden response must carry a message");
+    assert!(
+        body["message"].as_str().unwrap_or("").len() > 0,
+        "forbidden response must carry a message"
+    );
 }
 
 #[rocket::async_test]
@@ -59,9 +66,12 @@ async fn not_found_resource_returns_404() {
     assert_eq!(status, Status::Ok);
     let headers = auth_headers(&body.expect("json"));
 
-    let response = common::attach_auth(app.client.get("/api/v1/candidates/does-not-exist"), &headers)
-        .dispatch()
-        .await;
+    let response = common::attach_auth(
+        app.client.get("/api/v1/candidates/does-not-exist"),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(response.status(), Status::NotFound);
 }
 
@@ -86,14 +96,20 @@ async fn duplicate_attachment_fingerprint_returns_409() {
     });
     seed_candidate_for_attachment(&app.client, &headers, "cand-attach-1").await;
 
-    let first = common::attach_auth(app.client.post("/api/v1/attachments").json(&payload), &headers)
-        .dispatch()
-        .await;
+    let first = common::attach_auth(
+        app.client.post("/api/v1/attachments").json(&payload),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(first.status(), Status::Created);
 
-    let second = common::attach_auth(app.client.post("/api/v1/attachments").json(&payload), &headers)
-        .dispatch()
-        .await;
+    let second = common::attach_auth(
+        app.client.post("/api/v1/attachments").json(&payload),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(second.status(), Status::Conflict);
 }
 
@@ -118,9 +134,12 @@ async fn attachment_count_limit_returns_400() {
             "device_label": "scanner-1"
         });
 
-        let response = common::attach_auth(app.client.post("/api/v1/attachments").json(&payload), &headers)
-            .dispatch()
-            .await;
+        let response = common::attach_auth(
+            app.client.post("/api/v1/attachments").json(&payload),
+            &headers,
+        )
+        .dispatch()
+        .await;
         assert_eq!(response.status(), Status::Created);
     }
 
@@ -134,9 +153,12 @@ async fn attachment_count_limit_returns_400() {
         "device_label": "scanner-1"
     });
 
-    let response = common::attach_auth(app.client.post("/api/v1/attachments").json(&payload), &headers)
-        .dispatch()
-        .await;
+    let response = common::attach_auth(
+        app.client.post("/api/v1/attachments").json(&payload),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(response.status(), Status::BadRequest);
 }
 
@@ -159,9 +181,12 @@ async fn attachment_invalid_extension_returns_400() {
     });
     seed_candidate_for_attachment(&app.client, &headers, "cand-attach-ext").await;
 
-    let response = common::attach_auth(app.client.post("/api/v1/attachments").json(&payload), &headers)
-        .dispatch()
-        .await;
+    let response = common::attach_auth(
+        app.client.post("/api/v1/attachments").json(&payload),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(response.status(), Status::BadRequest);
 }
 
@@ -181,9 +206,11 @@ async fn template_validation_missing_required_candidate_name_returns_400() {
         "metadata_json": "{\"room_id\":\"room-x\"}"
     });
 
-    let response = common::attach_auth(app.client.post("/api/v1/candidates").json(&payload), &headers)
-        .dispatch()
-        .await;
+    let response = common::attach_auth(
+        app.client.post("/api/v1/candidates").json(&payload),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(response.status(), Status::BadRequest);
 }
-

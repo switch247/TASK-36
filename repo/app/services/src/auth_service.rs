@@ -1,11 +1,11 @@
-﻿use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Result};
 use bcrypt::{hash, verify, DEFAULT_COST};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use rand::RngCore;
 use sqlx::MySqlPool;
-use uuid::Uuid;
 use tracing::info;
+use uuid::Uuid;
 
 use app_core::auth::validate_password_policy;
 use app_core::errors::CoreError;
@@ -66,12 +66,14 @@ impl AuthService {
             let attempts = user.failed_login_attempts + 1;
             if attempts >= LOCKOUT_ATTEMPTS {
                 let until = lockout_until(Utc::now());
-                sqlx::query("UPDATE users SET failed_login_attempts = ?, lockout_until = ? WHERE id = ?")
-                    .bind(attempts)
-                    .bind(until.naive_utc())
-                    .bind(user.id.to_string())
-                    .execute(&self.pool)
-                    .await?;
+                sqlx::query(
+                    "UPDATE users SET failed_login_attempts = ?, lockout_until = ? WHERE id = ?",
+                )
+                .bind(attempts)
+                .bind(until.naive_utc())
+                .bind(user.id.to_string())
+                .execute(&self.pool)
+                .await?;
             } else {
                 sqlx::query("UPDATE users SET failed_login_attempts = ? WHERE id = ?")
                     .bind(attempts)
@@ -83,10 +85,12 @@ impl AuthService {
             return Err(anyhow!(CoreError::AuthenticationFailed));
         }
 
-        sqlx::query("UPDATE users SET failed_login_attempts = 0, lockout_until = NULL WHERE id = ?")
-            .bind(user.id.to_string())
-            .execute(&self.pool)
-            .await?;
+        sqlx::query(
+            "UPDATE users SET failed_login_attempts = 0, lockout_until = NULL WHERE id = ?",
+        )
+        .bind(user.id.to_string())
+        .execute(&self.pool)
+        .await?;
 
         info!("authentication succeeded");
         self.issue_tokens(&user).await
@@ -137,7 +141,16 @@ impl AuthService {
     }
 
     pub async fn validate_actor_session_only(&self, session_id: &str) -> Result<ApiActor> {
-        let session = sqlx::query_as::<_, (String, String, chrono::NaiveDateTime, chrono::NaiveDateTime, String)>(
+        let session = sqlx::query_as::<
+            _,
+            (
+                String,
+                String,
+                chrono::NaiveDateTime,
+                chrono::NaiveDateTime,
+                String,
+            ),
+        >(
             r#"SELECT s.id, s.user_id, s.last_activity, s.expires_at, u.role
                FROM user_sessions s
                JOIN users u ON u.id = s.user_id

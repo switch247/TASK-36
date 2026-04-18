@@ -57,8 +57,14 @@ fn table_components_render_real_frontend_rows() {
     }];
 
     assert!(table_users(users).is_ok(), "users table should render");
-    assert!(table_outputs(outputs).is_ok(), "outputs table should render");
-    assert!(table_attachments(attachments).is_ok(), "attachments table should render");
+    assert!(
+        table_outputs(outputs).is_ok(),
+        "outputs table should render"
+    );
+    assert!(
+        table_attachments(attachments).is_ok(),
+        "attachments table should render"
+    );
 }
 
 #[test]
@@ -89,13 +95,19 @@ fn reports_tables_render_real_report_modules() {
         incident_count: 0,
     }];
 
-    assert!(table_incidents(incidents).is_ok(), "incident table should render");
+    assert!(
+        table_incidents(incidents).is_ok(),
+        "incident table should render"
+    );
     assert!(
         table_return_rates(return_rates).is_ok(),
         "return rate table should render"
     );
     assert!(table_alerts(alerts).is_ok(), "alerts table should render");
-    assert!(table_materials_inventory(materials).is_ok(), "inventory table should render");
+    assert!(
+        table_materials_inventory(materials).is_ok(),
+        "inventory table should render"
+    );
 }
 
 #[test]
@@ -158,5 +170,8 @@ fn template_table_renders_template_versions() {
         created_at: "2026-03-27T10:00:00".into(),
     }];
 
-    assert!(table_templates(templates).is_ok(), "template table should render");
+    assert!(
+        table_templates(templates).is_ok(),
+        "template table should render"
+    );
 }

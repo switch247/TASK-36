@@ -75,9 +75,8 @@ async fn validate_against_template_with_mode(
         template
     };
 
-    TemplateService::validate_submission(&filtered_template, &payload).map_err(|err| {
-        ApiError::bad_request(format!("template validation failed: {err}"))
-    })?;
+    TemplateService::validate_submission(&filtered_template, &payload)
+        .map_err(|err| ApiError::bad_request(format!("template validation failed: {err}")))?;
     Ok(())
 }
 
@@ -85,7 +84,9 @@ fn parse_form_template(row: &TemplateRow) -> Option<FormTemplate> {
     if let Some(form_t) = row.snapshot.get("form_template") {
         if let Ok(parsed) = serde_json::from_value::<SnapshotFormTemplate>(form_t.clone()) {
             return Some(FormTemplate {
-                template_id: parsed.template_id.unwrap_or_else(|| row.template_id.clone()),
+                template_id: parsed
+                    .template_id
+                    .unwrap_or_else(|| row.template_id.clone()),
                 version: parsed.version.unwrap_or(row.version_no),
                 is_locked: row.locked_for_final_print,
                 rules: parsed.rules,

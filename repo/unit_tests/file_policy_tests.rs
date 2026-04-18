@@ -2,7 +2,7 @@
 mod tests {
     use app_core::file_policy::{
         sha256_fingerprint, validate_extension, validate_file_count, validate_file_size,
-        MAX_FILE_SIZE_BYTES, MAX_FILES_PER_RECORD,
+        MAX_FILES_PER_RECORD, MAX_FILE_SIZE_BYTES,
     };
 
     #[test]

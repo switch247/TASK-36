@@ -1,4 +1,4 @@
-﻿use chrono::NaiveDateTime;
+use chrono::NaiveDateTime;
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome};
 use rocket::{Request, State};
@@ -23,36 +23,64 @@ impl<'r> FromRequest<'r> for ApiContext {
         let session_id = req.headers().get_one("x-session-id");
 
         let Some(auth_service) = req.rocket().state::<AuthService>() else {
-            return Outcome::Error((Status::InternalServerError, ApiError::internal("auth service unavailable")));
+            return Outcome::Error((
+                Status::InternalServerError,
+                ApiError::internal("auth service unavailable"),
+            ));
         };
 
         let actor = match (authz, session_id) {
             (Some(authz), Some(session_id)) => {
                 let Some(token) = authz.strip_prefix("Bearer ").map(str::trim) else {
-                    return Outcome::Error((Status::Unauthorized, ApiError::unauthorized("invalid authorization scheme")));
+                    return Outcome::Error((
+                        Status::Unauthorized,
+                        ApiError::unauthorized("invalid authorization scheme"),
+                    ));
                 };
                 match auth_service.validate_actor(token, session_id).await {
                     Ok(actor) => actor,
-                    Err(_) => return Outcome::Error((Status::Unauthorized, ApiError::unauthorized("invalid token or session"))),
+                    Err(_) => {
+                        return Outcome::Error((
+                            Status::Unauthorized,
+                            ApiError::unauthorized("invalid token or session"),
+                        ))
+                    }
                 }
             }
             (Some(authz), None) => {
                 let Some(token) = authz.strip_prefix("Bearer ").map(str::trim) else {
-                    return Outcome::Error((Status::Unauthorized, ApiError::unauthorized("invalid authorization scheme")));
+                    return Outcome::Error((
+                        Status::Unauthorized,
+                        ApiError::unauthorized("invalid authorization scheme"),
+                    ));
                 };
                 match auth_service.validate_actor_jwt_only(token) {
                     Ok(actor) => actor,
-                    Err(_) => return Outcome::Error((Status::Unauthorized, ApiError::unauthorized("invalid token"))),
+                    Err(_) => {
+                        return Outcome::Error((
+                            Status::Unauthorized,
+                            ApiError::unauthorized("invalid token"),
+                        ))
+                    }
                 }
             }
-            (None, Some(session_id)) => match auth_service.validate_actor_session_only(session_id).await {
-                Ok(actor) => actor,
-                Err(_) => return Outcome::Error((Status::Unauthorized, ApiError::unauthorized("invalid session"))),
-            },
+            (None, Some(session_id)) => {
+                match auth_service.validate_actor_session_only(session_id).await {
+                    Ok(actor) => actor,
+                    Err(_) => {
+                        return Outcome::Error((
+                            Status::Unauthorized,
+                            ApiError::unauthorized("invalid session"),
+                        ))
+                    }
+                }
+            }
             (None, None) => {
                 return Outcome::Error((
                     Status::Unauthorized,
-                    ApiError::unauthorized("missing credentials: provide bearer token, session id, or both"),
+                    ApiError::unauthorized(
+                        "missing credentials: provide bearer token, session id, or both",
+                    ),
                 ));
             }
         };
@@ -66,7 +94,12 @@ impl<'r> FromRequest<'r> for ApiContext {
     }
 }
 
-pub async fn audit(audit_service: &State<AuditService>, ctx: &ApiContext, action: &str, resource: &str) {
+pub async fn audit(
+    audit_service: &State<AuditService>,
+    ctx: &ApiContext,
+    action: &str,
+    resource: &str,
+) {
     let _ = audit_service
         .record_api_call(
             ctx.actor.user_id.as_deref(),

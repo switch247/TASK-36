@@ -202,19 +202,27 @@ pub async fn delete_template(
     let user_id = actor_user_id(&ctx)?;
     ensure_template_version_mutable(pool.inner(), template_id, version_no).await?;
 
-    let result = sqlx::query("DELETE FROM template_versions WHERE template_id = ? AND version_no = ?")
-        .bind(template_id)
-        .bind(version_no)
-        .execute(pool.inner())
-        .await
-        .map_err(|_| ApiError::internal("failed to delete template version"))?;
+    let result =
+        sqlx::query("DELETE FROM template_versions WHERE template_id = ? AND version_no = ?")
+            .bind(template_id)
+            .bind(version_no)
+            .execute(pool.inner())
+            .await
+            .map_err(|_| ApiError::internal("failed to delete template version"))?;
 
     if result.rows_affected() == 0 {
         return Err(ApiError::not_found("template version not found"));
     }
 
     let _ = audit_service
-        .record_change("template_versions", template_id, "DELETE", None, None, user_id)
+        .record_change(
+            "template_versions",
+            template_id,
+            "DELETE",
+            None,
+            None,
+            user_id,
+        )
         .await;
 
     audit(

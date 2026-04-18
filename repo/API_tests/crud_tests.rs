@@ -40,7 +40,10 @@ async fn create_read_update_delete_candidate_with_auth() {
     assert_eq!(read_body["id"], "cand-001");
     assert_eq!(read_body["national_id"], "ID00112233");
     assert_eq!(read_body["scanned_barcode"], "BAR-001");
-    assert_eq!(read_body["dob_masked"], "**/**/****", "DOB must be masked in responses");
+    assert_eq!(
+        read_body["dob_masked"], "**/**/****",
+        "DOB must be masked in responses"
+    );
 
     let update_payload = json!({
         "scanned_barcode": "BAR-UPDATED",
@@ -58,11 +61,12 @@ async fn create_read_update_delete_candidate_with_auth() {
     assert_eq!(response.status(), Status::Ok);
 
     // Verify the update actually mutated the row.
-    let updated_barcode: String = sqlx::query_scalar("SELECT scanned_barcode FROM candidates WHERE id = ?")
-        .bind("cand-001")
-        .fetch_one(&app.pool)
-        .await
-        .expect("candidate row after update");
+    let updated_barcode: String =
+        sqlx::query_scalar("SELECT scanned_barcode FROM candidates WHERE id = ?")
+            .bind("cand-001")
+            .fetch_one(&app.pool)
+            .await
+            .expect("candidate row after update");
     assert_eq!(updated_barcode, "BAR-UPDATED");
 
     let response = common::attach_auth(app.client.delete("/api/v1/candidates/cand-001"), &headers)
@@ -75,7 +79,10 @@ async fn create_read_update_delete_candidate_with_auth() {
         .fetch_one(&app.pool)
         .await
         .expect("count after delete");
-    assert_eq!(remaining, 0, "delete must actually remove the candidate row");
+    assert_eq!(
+        remaining, 0,
+        "delete must actually remove the candidate row"
+    );
 
     let count = sqlx::query_scalar::<_, i64>(
         "SELECT COUNT(*) FROM entity_change_history WHERE entity_name = 'candidates'",
@@ -102,14 +109,20 @@ async fn duplicate_candidate_returns_409() {
         "metadata_json": "{\"room_id\":\"room-a\"}"
     });
 
-    let first = common::attach_auth(app.client.post("/api/v1/candidates").json(&payload), &headers)
-        .dispatch()
-        .await;
+    let first = common::attach_auth(
+        app.client.post("/api/v1/candidates").json(&payload),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(first.status(), Status::Created);
 
-    let second = common::attach_auth(app.client.post("/api/v1/candidates").json(&payload), &headers)
-        .dispatch()
-        .await;
+    let second = common::attach_auth(
+        app.client.post("/api/v1/candidates").json(&payload),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(second.status(), Status::Conflict);
 }
 
@@ -136,14 +149,18 @@ async fn duplicate_candidate_by_barcode_returns_409() {
         "metadata_json": "{\"name\":\"Beta Two\",\"room_id\":\"room-a\"}"
     });
 
-    let first_resp = common::attach_auth(app.client.post("/api/v1/candidates").json(&first), &headers)
-        .dispatch()
-        .await;
+    let first_resp =
+        common::attach_auth(app.client.post("/api/v1/candidates").json(&first), &headers)
+            .dispatch()
+            .await;
     assert_eq!(first_resp.status(), Status::Created);
 
-    let second_resp = common::attach_auth(app.client.post("/api/v1/candidates").json(&second), &headers)
-        .dispatch()
-        .await;
+    let second_resp = common::attach_auth(
+        app.client.post("/api/v1/candidates").json(&second),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(second_resp.status(), Status::Conflict);
 }
 
@@ -170,14 +187,18 @@ async fn guided_merge_duplicate_by_name_and_dob_returns_409() {
         "metadata_json": "{\"name\":\"Jane Alexndra Doe\",\"room_id\":\"room-a\"}"
     });
 
-    let first_resp = common::attach_auth(app.client.post("/api/v1/candidates").json(&first), &headers)
-        .dispatch()
-        .await;
+    let first_resp =
+        common::attach_auth(app.client.post("/api/v1/candidates").json(&first), &headers)
+            .dispatch()
+            .await;
     assert_eq!(first_resp.status(), Status::Created);
 
-    let second_resp = common::attach_auth(app.client.post("/api/v1/candidates").json(&second), &headers)
-        .dispatch()
-        .await;
+    let second_resp = common::attach_auth(
+        app.client.post("/api/v1/candidates").json(&second),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(second_resp.status(), Status::Conflict);
 }
 
@@ -197,9 +218,12 @@ async fn insufficient_role_on_inventory_route_returns_403() {
         "metadata_json": "{\"room_id\":\"room-a\"}"
     });
 
-    let response = common::attach_auth(app.client.post("/api/v1/candidates").json(&payload), &headers)
-        .dispatch()
-        .await;
+    let response = common::attach_auth(
+        app.client.post("/api/v1/candidates").json(&payload),
+        &headers,
+    )
+    .dispatch()
+    .await;
     assert_eq!(response.status(), Status::Forbidden);
 }
 
@@ -256,4 +280,3 @@ async fn cross_user_access_returns_404() {
         .await;
     assert_eq!(response.status(), Status::NotFound);
 }
-

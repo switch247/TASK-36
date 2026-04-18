@@ -22,7 +22,10 @@ async fn export_excel_returns_tsv_with_expected_header() {
     assert_eq!(resp.status(), Status::Ok);
     let body: Value = resp.into_json().await.expect("json");
     let content = body["content"].as_str().unwrap_or_default();
-    assert!(content.contains("session_id"), "excel content must include column header");
+    assert!(
+        content.contains("session_id"),
+        "excel content must include column header"
+    );
 
     let audit_count: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM audit_logs WHERE action = 'export_data' AND resource = '/api/v1/exports/excel'",

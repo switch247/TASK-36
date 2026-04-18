@@ -40,11 +40,15 @@ pub async fn create_asset(
     audit_service: &State<AuditService>,
     ctx: ApiContext,
 ) -> ApiResult<Status> {
-    RbacService::require_manage_inventory(&ctx.actor.role).map_err(|_| ApiError::forbidden("role cannot create asset"))?;
+    RbacService::require_manage_inventory(&ctx.actor.role)
+        .map_err(|_| ApiError::forbidden("role cannot create asset"))?;
     let user_id = actor_user_id(&ctx)?;
 
     let expires_on = match &payload.expires_on {
-        Some(v) => Some(NaiveDate::parse_from_str(v, "%Y-%m-%d").map_err(|_| ApiError::bad_request("expires_on must be YYYY-MM-DD"))?),
+        Some(v) => Some(
+            NaiveDate::parse_from_str(v, "%Y-%m-%d")
+                .map_err(|_| ApiError::bad_request("expires_on must be YYYY-MM-DD"))?,
+        ),
         None => None,
     };
 
@@ -93,7 +97,8 @@ pub async fn list_assets(
     sort_order: Option<String>,
     filter: Option<String>,
 ) -> ApiResult<Json<Vec<AssetRow>>> {
-    RbacService::require_manage_inventory(&ctx.actor.role).map_err(|_| ApiError::forbidden("role cannot list assets"))?;
+    RbacService::require_manage_inventory(&ctx.actor.role)
+        .map_err(|_| ApiError::forbidden("role cannot list assets"))?;
     let user_id = actor_user_id(&ctx)?;
 
     let params = PaginationParams {
@@ -171,11 +176,15 @@ pub async fn update_asset(
     audit_service: &State<AuditService>,
     ctx: ApiContext,
 ) -> ApiResult<Status> {
-    RbacService::require_manage_inventory(&ctx.actor.role).map_err(|_| ApiError::forbidden("role cannot update asset"))?;
+    RbacService::require_manage_inventory(&ctx.actor.role)
+        .map_err(|_| ApiError::forbidden("role cannot update asset"))?;
     let user_id = actor_user_id(&ctx)?;
 
     let expires_on = match &payload.expires_on {
-        Some(v) => Some(NaiveDate::parse_from_str(v, "%Y-%m-%d").map_err(|_| ApiError::bad_request("expires_on must be YYYY-MM-DD"))?),
+        Some(v) => Some(
+            NaiveDate::parse_from_str(v, "%Y-%m-%d")
+                .map_err(|_| ApiError::bad_request("expires_on must be YYYY-MM-DD"))?,
+        ),
         None => None,
     };
 
@@ -239,7 +248,8 @@ pub async fn delete_asset(
     audit_service: &State<AuditService>,
     ctx: ApiContext,
 ) -> ApiResult<Status> {
-    RbacService::require_manage_inventory(&ctx.actor.role).map_err(|_| ApiError::forbidden("role cannot delete asset"))?;
+    RbacService::require_manage_inventory(&ctx.actor.role)
+        .map_err(|_| ApiError::forbidden("role cannot delete asset"))?;
     let user_id = actor_user_id(&ctx)?;
 
     let result = if is_admin(&ctx) {
