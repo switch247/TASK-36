@@ -1,0 +1,11 @@
+FROM rust:latest
+
+RUN cargo install dioxus-cli --version 0.7.3 --locked
+
+WORKDIR /usr/src/eagle
+COPY . .
+
+WORKDIR /usr/src/eagle/frontend
+EXPOSE 8080
+
+CMD ["dx", "serve", "--platform", "web", "--port", "8080", "--addr", "0.0.0.0"]

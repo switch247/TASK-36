@@ -1,0 +1,48 @@
+# Rust build artifacts
+target/
+**/target/
+Cargo.lock.bak
+
+# Git
+.git/
+.gitignore
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test artifacts (exclude but keep test source)
+**/unit_tests/
+**/API_tests/
+**/tests/
+
+# Documentation (exclude from build context, keep in repo)
+docs/
+README.md
+
+# Frontend build artifacts
+frontend/dist/
+frontend/node_modules/
+frontend/.dx/
+frontend/.dioxus/
+frontend/.cache/
+frontend/.wasm-cache/
+
+# Backup files
+*.rs.bk
+*.bak
+
+# Logs
+*.log

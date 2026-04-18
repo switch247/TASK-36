@@ -1,0 +1,24 @@
+﻿[package]
+name = "app_services"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+bcrypt.workspace = true
+jsonwebtoken.workspace = true
+aes-gcm.workspace = true
+base64.workspace = true
+rand.workspace = true
+sqlx.workspace = true
+sha2.workspace = true
+regex.workspace = true
+strsim.workspace = true
+tracing.workspace = true
+app_core = { path = "../core" }
+app_models = { path = "../models" }

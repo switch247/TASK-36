@@ -1,0 +1,596 @@
+use std::env;
+use std::sync::OnceLock;
+use std::time::Duration;
+
+use anyhow::Context;
+use rocket::http::{Header, Status};
+use rocket::local::asynchronous::Client;
+use serde_json::Value;
+use sqlx::mysql::MySqlPoolOptions;
+use sqlx::MySqlPool;
+use rocket::tokio::sync::{Mutex, MutexGuard};
+
+use app_api_v1::routes_v1;
+use app_services::audit_service::AuditService;
+use app_services::auth_service::AuthService;
+use app_services::candidate_service::CandidateService;
+use app_services::cleansing_service::CleansingService;
+use app_services::messaging_service::MessagingService;
+use app_services::output_service::OutputService;
+use app_services::reporting_service::ReportingService;
+
+pub const ADMIN_USERNAME: &str = "admin_local";
+pub const ADMIN_PASSWORD: &str = "AdminPass#2026!";
+pub const COORD_USERNAME: &str = "coord_local";
+pub const COORD_PASSWORD: &str = "CoordPass#2026!";
+pub const PROCTOR_USERNAME: &str = "proctor_local";
+pub const PROCTOR_PASSWORD: &str = "ProctorPass#2026!";
+pub const AUDITOR_USERNAME: &str = "auditor_local";
+pub const AUDITOR_PASSWORD: &str = "AuditorPass#2026!";
+
+pub struct TestApp {
+    pub client: Client,
+    pub pool: MySqlPool,
+    _lock_guard: MutexGuard<'static, ()>,
+    admin_database_url: String,
+    database_name: String,
+}
+
+impl Drop for TestApp {
+    fn drop(&mut self) {
+        let admin_url = self.admin_database_url.clone();
+        let db_name = self.database_name.clone();
+        if admin_url.is_empty() || db_name.is_empty() {
+            return;
+        }
+
+        let drop_sql = format!("DROP DATABASE IF EXISTS `{db_name}`");
+        let _ = std::thread::spawn(move || {
+            if let Ok(rt) = rocket::tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+            {
+                rt.block_on(async move {
+                    if let Ok(pool) = MySqlPoolOptions::new()
+                        .max_connections(1)
+                        .connect(&admin_url)
+                        .await
+                    {
+                        let _ = sqlx::query(&drop_sql).execute(&pool).await;
+                    }
+                });
+            }
+        })
+        .join();
+    }
+}
+
+pub async fn setup_app() -> anyhow::Result<TestApp> {
+    let test_lock = global_test_lock().lock().await;
+
+    let database_url = env::var("TEST_DATABASE_URL")
+        .ok()
+        .or_else(|| env::var("DATABASE_URL").ok())
+        .unwrap_or_else(|| "mysql://eagle:change_this_user_password@localhost:3306/eagle_exam".to_string());
+    if database_url.contains("change_this_user_password") {
+        return Err(anyhow::anyhow!(
+            "TEST_DATABASE_URL (or DATABASE_URL) must point to a reachable MySQL instance before running integration tests",
+        ));
+    }
+
+    let jwt_secret = env::var("TEST_JWT_SECRET")
+        .ok()
+        .or_else(|| env::var("JWT_SECRET").ok())
+        .unwrap_or_else(|| "test-jwt-secret-change-me".to_string());
+
+    let (admin_database_url, test_database_url, test_database_name) = derive_test_db_urls(&database_url)?;
+
+    let admin_pool = MySqlPoolOptions::new()
+        .max_connections(1)
+        .acquire_timeout(Duration::from_secs(10))
+        .connect(&admin_database_url)
+        .await
+        .with_context(|| format!("failed to connect admin DB URL: {admin_database_url}"))?;
+    sqlx::query(&format!("DROP DATABASE IF EXISTS `{}`", test_database_name))
+        .execute(&admin_pool)
+        .await?;
+    sqlx::query(&format!("CREATE DATABASE `{}`", test_database_name))
+        .execute(&admin_pool)
+        .await?;
+
+    let pool = MySqlPoolOptions::new()
+        .max_connections(1)
+        .acquire_timeout(Duration::from_secs(10))
+        .connect(&test_database_url)
+        .await
+        .with_context(|| format!("failed to connect test DB URL: {test_database_url}"))?;
+
+    ensure_schema(&pool).await?;
+
+    let auth_service = AuthService::new(pool.clone(), jwt_secret);
+    let admin_user_id = seed_users(&pool, &auth_service).await?;
+    seed_templates(&pool, &admin_user_id).await?;
+    seed_zip_city_reference(&pool).await?;
+
+    let candidate_service = CandidateService::new(pool.clone(), [7u8; 32]);
+    let cleansing_service = CleansingService::new(pool.clone());
+    let audit_service = AuditService::new(pool.clone());
+    let reporting_service = ReportingService::new(pool.clone());
+    let output_service = OutputService::new(pool.clone());
+    let messaging_service = MessagingService::new(pool.clone());
+
+    let rocket = rocket::build()
+        .manage(pool.clone())
+        .manage(auth_service)
+        .manage(candidate_service)
+        .manage(cleansing_service)
+        .manage(audit_service)
+        .manage(reporting_service)
+        .manage(output_service)
+        .manage(messaging_service)
+        .mount("/api/v1", routes_v1());
+
+    let client = Client::tracked(rocket).await?;
+    Ok(TestApp {
+        client,
+        pool,
+        _lock_guard: test_lock,
+        admin_database_url,
+        database_name: test_database_name,
+    })
+}
+
+fn global_test_lock() -> &'static Mutex<()> {
+    static TEST_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
+    TEST_MUTEX.get_or_init(|| Mutex::new(()))
+}
+
+fn derive_test_db_urls(database_url: &str) -> anyhow::Result<(String, String, String)> {
+    let (base, query_suffix) = match database_url.split_once('?') {
+        Some((b, q)) => (b, format!("?{q}")),
+        None => (database_url, String::new()),
+    };
+    let slash_idx = base
+        .rfind('/')
+        .ok_or_else(|| anyhow::anyhow!("invalid TEST_DATABASE_URL"))?;
+    let host_prefix = &base[..slash_idx];
+    let test_db_name = format!("eagle_exam_test_{}", uuid::Uuid::new_v4().simple());
+    let admin_db_url = format!("{host_prefix}/mysql{query_suffix}");
+    let test_db_url = format!("{host_prefix}/{test_db_name}{query_suffix}");
+    Ok((admin_db_url, test_db_url, test_db_name))
+}
+
+pub async fn login(client: &Client, username: &str, password: &str) -> (Status, Option<Value>) {
+    let response = client
+        .post("/api/v1/auth/login")
+        .json(&serde_json::json!({ "username": username, "password": password }))
+        .dispatch()
+        .await;
+
+    let status = response.status();
+    let body = response.into_json::<Value>().await;
+    (status, body)
+}
+
+pub fn auth_headers(body: &Value) -> Vec<Header<'static>> {
+    let jwt = body
+        .get("jwt")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let session_id = body
+        .get("session_id")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+
+    vec![
+        Header::new("Authorization", format!("Bearer {jwt}")),
+        Header::new("x-session-id", session_id),
+    ]
+}
+
+pub fn attach_auth<'a>(
+    mut req: rocket::local::asynchronous::LocalRequest<'a>,
+    headers: &[Header<'static>],
+) -> rocket::local::asynchronous::LocalRequest<'a> {
+    for h in headers {
+        req = req.header(h.clone());
+    }
+    req
+}
+
+/// Log in as one of the seeded roles and return auth headers suitable for `attach_auth`.
+#[allow(dead_code)]
+pub async fn login_as(client: &Client, role: Role) -> Vec<Header<'static>> {
+    let (user, pass) = role.credentials();
+    let (status, body) = login(client, user, pass).await;
+    assert_eq!(status, Status::Ok, "login failed for {:?}", role);
+    auth_headers(&body.expect("login body"))
+}
+
+#[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
+pub enum Role {
+    Admin,
+    Coordinator,
+    Proctor,
+    Auditor,
+}
+
+impl Role {
+    #[allow(dead_code)]
+    pub fn credentials(self) -> (&'static str, &'static str) {
+        match self {
+            Role::Admin => (ADMIN_USERNAME, ADMIN_PASSWORD),
+            Role::Coordinator => (COORD_USERNAME, COORD_PASSWORD),
+            Role::Proctor => (PROCTOR_USERNAME, PROCTOR_PASSWORD),
+            Role::Auditor => (AUDITOR_USERNAME, AUDITOR_PASSWORD),
+        }
+    }
+}
+
+/// Return the seeded user id for a role.
+#[allow(dead_code)]
+pub async fn user_id_for(pool: &MySqlPool, username: &str) -> String {
+    sqlx::query_scalar::<_, String>("SELECT id FROM users WHERE username = ?")
+        .bind(username)
+        .fetch_one(pool)
+        .await
+        .unwrap_or_else(|e| panic!("failed to fetch user id for {username}: {e}"))
+}
+
+/// Insert a room directly via SQL owned by the given user (coordinator or admin).
+#[allow(dead_code)]
+pub async fn factory_room(pool: &MySqlPool, id: &str, capacity: i32, location: &str, owner_id: &str) {
+    sqlx::query("INSERT INTO rooms (id, capacity, location, created_by) VALUES (?, ?, ?, ?)")
+        .bind(id)
+        .bind(capacity)
+        .bind(location)
+        .bind(owner_id)
+        .execute(pool)
+        .await
+        .unwrap_or_else(|e| panic!("factory_room failed: {e}"));
+}
+
+/// Insert an exam session owned by `owner_id`.
+#[allow(dead_code)]
+pub async fn factory_session(
+    pool: &MySqlPool,
+    id: &str,
+    template_name: &str,
+    duration_minutes: i32,
+    owner_id: &str,
+) {
+    sqlx::query(
+        "INSERT INTO exam_sessions (id, template_name, duration_minutes, status, starts_at, ends_at, locked_for_final_print, created_by)
+         VALUES (?, ?, ?, 'Scheduled', UTC_TIMESTAMP(), DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? MINUTE), FALSE, ?)",
+    )
+    .bind(id)
+    .bind(template_name)
+    .bind(duration_minutes)
+    .bind(duration_minutes)
+    .bind(owner_id)
+    .execute(pool)
+    .await
+    .unwrap_or_else(|e| panic!("factory_session failed: {e}"));
+}
+
+/// Insert an asset owned by `owner_id` attached to a session.
+#[allow(dead_code)]
+pub async fn factory_asset(
+    pool: &MySqlPool,
+    id: &str,
+    booklet_code: &str,
+    session_id: &str,
+    owner_id: &str,
+) {
+    sqlx::query(
+        "INSERT INTO assets (id, booklet_code, tracking_status, session_id, incident_count, created_by)
+         VALUES (?, ?, 'Prepared', ?, 0, ?)",
+    )
+    .bind(id)
+    .bind(booklet_code)
+    .bind(session_id)
+    .bind(owner_id)
+    .execute(pool)
+    .await
+    .unwrap_or_else(|e| panic!("factory_asset failed: {e}"));
+}
+
+/// Create a candidate via the HTTP API with sensible defaults. Accepts the role's auth headers.
+#[allow(dead_code)]
+pub async fn factory_candidate_http(
+    client: &Client,
+    headers: &[Header<'static>],
+    id: &str,
+    national_id: &str,
+    scanned_barcode: &str,
+) {
+    let payload = serde_json::json!({
+        "candidate_id": id,
+        "date_of_birth": "03/27/2001",
+        "national_id": national_id,
+        "scanned_barcode": scanned_barcode,
+        "metadata_json": format!("{{\"name\":\"Candidate {id}\",\"room_id\":\"room-a\"}}")
+    });
+    let resp = attach_auth(client.post("/api/v1/candidates").json(&payload), headers)
+        .dispatch()
+        .await;
+    assert_eq!(resp.status(), Status::Created, "factory_candidate_http failed for {id}");
+}
+
+/// Create a second user for cross-ownership tests. Returns (user_id, username).
+#[allow(dead_code)]
+pub async fn factory_user(
+    client: &Client,
+    pool: &MySqlPool,
+    username: &str,
+    password: &str,
+    role: &str,
+) -> String {
+    let auth_service = client
+        .rocket()
+        .state::<app_services::auth_service::AuthService>()
+        .expect("auth service state");
+    let hashed = auth_service.hash_password(password).expect("hash");
+    let user_id = uuid::Uuid::new_v4().to_string();
+    sqlx::query(
+        "INSERT INTO users (id, username, password_hash, role, failed_login_attempts) VALUES (?, ?, ?, ?, 0)",
+    )
+    .bind(&user_id)
+    .bind(username)
+    .bind(hashed)
+    .bind(role)
+    .execute(pool)
+    .await
+    .expect("insert factory user");
+    user_id
+}
+
+/// Assert that a JSON body has a field equal to the given JSON value.
+#[allow(dead_code)]
+pub fn assert_field_eq(body: &Value, path: &str, expected: Value) {
+    let mut cur = body;
+    for seg in path.split('.') {
+        cur = cur.get(seg).unwrap_or_else(|| panic!("missing field path '{path}' in body {body}"));
+    }
+    assert_eq!(cur, &expected, "path={path} body={body}");
+}
+
+/// Count rows in a table with a simple WHERE clause.
+#[allow(dead_code)]
+pub async fn count_rows(pool: &MySqlPool, sql: &str) -> i64 {
+    sqlx::query_scalar::<_, i64>(sql)
+        .fetch_one(pool)
+        .await
+        .unwrap_or_else(|e| panic!("count_rows failed for `{sql}`: {e}"))
+}
+
+async fn ensure_schema(pool: &MySqlPool) -> anyhow::Result<()> {
+    let scripts = [
+        include_str!("../app/models/migrations/001_init.sql"),
+        include_str!("../app/models/migrations/002_seed_zip_city.sql"),
+        include_str!("../app/models/migrations/003_print_output_template_ref.sql"),
+        include_str!("../app/models/migrations/004_candidate_uniqueness.sql"),
+        include_str!("../app/models/migrations/005_attachment_blob.sql"),
+        include_str!("../app/models/migrations/006_session_assignments.sql"),
+    ];
+    for script in scripts {
+        execute_migration_script(pool, script).await?;
+    }
+
+    Ok(())
+}
+
+async fn execute_migration_script(pool: &MySqlPool, script: &str) -> anyhow::Result<()> {
+    let mut delimiter = ";".to_string();
+    let mut statement = String::new();
+
+    for raw_line in script.lines() {
+        let trimmed = raw_line.trim();
+        if trimmed.is_empty() || trimmed.starts_with("--") {
+            continue;
+        }
+        if let Some(rest) = trimmed.strip_prefix("DELIMITER ") {
+            delimiter = rest.trim().to_string();
+            continue;
+        }
+
+        statement.push_str(raw_line);
+        statement.push('\n');
+
+        if statement.trim_end().ends_with(&delimiter) {
+            let mut finalized = statement.trim_end().to_string();
+            if finalized.ends_with(&delimiter) {
+                let new_len = finalized.len() - delimiter.len();
+                finalized.truncate(new_len);
+            }
+            if !finalized.trim().is_empty() {
+                sqlx::query(finalized.trim()).execute(pool).await?;
+            }
+            statement.clear();
+        }
+    }
+
+    if !statement.trim().is_empty() {
+        sqlx::query(statement.trim()).execute(pool).await?;
+    }
+
+    Ok(())
+}
+
+async fn reset_data(pool: &MySqlPool) -> anyhow::Result<()> {
+    let resets = [
+        // audit_logs is immutable via DELETE trigger; TRUNCATE bypasses row triggers in MySQL.
+        "TRUNCATE TABLE audit_logs",
+        "TRUNCATE TABLE entity_change_history",
+        "TRUNCATE TABLE template_versions",
+        "TRUNCATE TABLE merge_candidates",
+        "TRUNCATE TABLE attachments",
+        "TRUNCATE TABLE print_outputs",
+        "TRUNCATE TABLE exam_session_assignments",
+        "TRUNCATE TABLE assets",
+        "TRUNCATE TABLE exam_sessions",
+        "TRUNCATE TABLE rooms",
+        "TRUNCATE TABLE candidates",
+        "TRUNCATE TABLE zip_city_reference",
+        "TRUNCATE TABLE message_drafts",
+        "TRUNCATE TABLE user_sessions",
+        "TRUNCATE TABLE users",
+    ];
+
+    sqlx::query("SET FOREIGN_KEY_CHECKS = 0").execute(pool).await?;
+    for stmt in resets {
+        sqlx::query(stmt).execute(pool).await?;
+    }
+    sqlx::query("SET FOREIGN_KEY_CHECKS = 1").execute(pool).await?;
+
+    Ok(())
+}
+
+async fn seed_users(pool: &MySqlPool, auth: &AuthService) -> anyhow::Result<String> {
+    let mut admin_user_id = String::new();
+    let users = [
+        (ADMIN_USERNAME, ADMIN_PASSWORD, "Admin"),
+        (COORD_USERNAME, COORD_PASSWORD, "Coordinator"),
+        (PROCTOR_USERNAME, PROCTOR_PASSWORD, "Proctor"),
+        (AUDITOR_USERNAME, AUDITOR_PASSWORD, "Auditor"),
+    ];
+
+    for (username, password, role) in users {
+        let hashed = auth.hash_password(password)?;
+        let user_id = uuid::Uuid::new_v4().to_string();
+        sqlx::query(
+            "INSERT INTO users (id, username, password_hash, role, failed_login_attempts) VALUES (?, ?, ?, ?, 0)",
+        )
+        .bind(&user_id)
+        .bind(username)
+        .bind(hashed)
+        .bind(role)
+        .execute(pool)
+        .await?;
+        if username == ADMIN_USERNAME {
+            admin_user_id = user_id;
+        }
+    }
+
+    Ok(admin_user_id)
+}
+
+async fn seed_templates(pool: &MySqlPool, created_by: &str) -> anyhow::Result<()> {
+    let snapshots = [
+        (
+            "base-template",
+            1_i32,
+            serde_json::json!({
+                "rules": {
+                    "id": ["Required"],
+                    "duration_minutes": ["Required", {"Range":{"min":15.0,"max":360.0}}],
+                    "status": ["Required"],
+                    "starts_at": ["Required"],
+                    "ends_at": ["Required"]
+                },
+                "admit_card": {"title": "Base Admit Card"},
+                "seating_chart": {"title": "Base Seating Chart"},
+                "door_sign": {"title": "Base Door Sign"},
+                "proctor_packet": {"checklist": ["Check IDs", "Verify assets"]},
+                "summary_report": {"title": "Base Summary Report"}
+            }),
+        ),
+        (
+            "Template A",
+            1_i32,
+            serde_json::json!({
+                "rules": {
+                    "id": ["Required"],
+                    "duration_minutes": ["Required", {"Range":{"min":15.0,"max":360.0}}],
+                    "status": ["Required"],
+                    "starts_at": ["Required"],
+                    "ends_at": ["Required"]
+                },
+                "admit_card": {"title": "Template A Admit Card"},
+                "seating_chart": {"title": "Template A Seating Chart"},
+                "door_sign": {"title": "Template A Door Sign"},
+                "proctor_packet": {"checklist": ["Room prep", "Attendance", "Incident tracking"]},
+                "summary_report": {"title": "Template A Summary Report"}
+            }),
+        ),
+        (
+            "candidate-registration",
+            1_i32,
+            serde_json::json!({
+                "rules": {
+                    "date_of_birth": ["Required"],
+                    "national_id": ["Required"],
+                    "scanned_barcode": ["Required"],
+                    "name": ["Required"]
+                },
+                "admit_card": {"title": "Candidate Registration Admit Card"},
+                "summary_report": {"title": "Candidate Registration Summary"}
+            }),
+        ),
+        (
+            "room-config",
+            1_i32,
+            serde_json::json!({
+                "rules": {
+                    "id": ["Required"],
+                    "capacity": ["Required", {"Range":{"min":1.0,"max":500.0}}],
+                    "location": ["Required"]
+                }
+            }),
+        ),
+        (
+            "proctor-profile",
+            1_i32,
+            serde_json::json!({
+                "rules": {
+                    "username": ["Required"],
+                    "role": ["Required"]
+                }
+            }),
+        ),
+    ];
+
+    for (template_id, version_no, snapshot) in snapshots {
+        sqlx::query(
+            "INSERT INTO template_versions (id, template_id, version_no, snapshot, locked_for_final_print, created_by)
+             VALUES (?, ?, ?, CAST(? AS JSON), FALSE, ?)
+             ON DUPLICATE KEY UPDATE snapshot = VALUES(snapshot)",
+        )
+        .bind(uuid::Uuid::new_v4().to_string())
+        .bind(template_id)
+        .bind(version_no)
+        .bind(snapshot.to_string())
+        .bind(created_by)
+        .execute(pool)
+        .await?;
+    }
+
+    Ok(())
+}
+
+async fn seed_zip_city_reference(pool: &MySqlPool) -> anyhow::Result<()> {
+    let rows = [
+        ("00100", "Nairobi", Some("Nairobi County"), "KE"),
+        ("20100", "Nakuru", Some("Nakuru County"), "KE"),
+        ("40100", "Kisumu", Some("Kisumu County"), "KE"),
+    ];
+
+    for (zip_code, city, state, country) in rows {
+        sqlx::query(
+            "INSERT INTO zip_city_reference (zip_code, city, state, country)
+             VALUES (?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE city = VALUES(city), state = VALUES(state), country = VALUES(country)",
+        )
+        .bind(zip_code)
+        .bind(city)
+        .bind(state)
+        .bind(country)
+        .execute(pool)
+        .await?;
+    }
+
+    Ok(())
+}

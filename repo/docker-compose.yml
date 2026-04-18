@@ -1,0 +1,130 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: eagle_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_this_root_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-eagle_exam}
+      MYSQL_USER: ${MYSQL_USER:-eagle}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change_this_user_password}
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./app/models/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u${MYSQL_USER:-eagle}", "-p${MYSQL_PASSWORD:-change_this_user_password}"]
+      interval: 15s
+      timeout: 5s
+      retries: 30
+      start_period: 6m
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eagle_app
+    depends_on:
+      db:
+        condition: service_healthy
+      seed:
+        condition: service_completed_successfully
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_this_root_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-eagle_exam}
+      MYSQL_USER: ${MYSQL_USER:-eagle}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change_this_user_password}
+      DATABASE_URL: mysql://${MYSQL_USER:-eagle}:${MYSQL_PASSWORD:-change_this_user_password}@db:3306/${MYSQL_DATABASE:-eagle_exam}
+      JWT_SECRET: ${JWT_SECRET:-replace_with_long_random_secret}
+      AES_KEY_BASE64: ${AES_KEY_BASE64:-MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=}
+      ROCKET_CORS_ORIGINS: ${ROCKET_CORS_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080,http://frontend:8080}
+      ROCKET_ADDRESS: 0.0.0.0
+      ROCKET_PORT: 8000
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: eagle_frontend
+    depends_on:
+      app:
+        condition: service_started
+    environment:
+      API_BASE: ${API_BASE:-http://localhost:8000/api/v1}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  backend-test:
+    profiles: ["test"]
+    image: rust:latest
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      TEST_DATABASE_URL: mysql://${MYSQL_USER:-eagle}:${MYSQL_PASSWORD:-change_this_user_password}@db:3306/${MYSQL_DATABASE:-eagle_exam}
+      TEST_JWT_SECRET: ${JWT_SECRET:-replace_with_long_random_secret}
+      JWT_SECRET: ${JWT_SECRET:-replace_with_long_random_secret}
+      DATABASE_URL: mysql://${MYSQL_USER:-eagle}:${MYSQL_PASSWORD:-change_this_user_password}@db:3306/${MYSQL_DATABASE:-eagle_exam}
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
+    command: ["/usr/local/cargo/bin/cargo", "test", "-p", "backend", "--tests"]
+
+  frontend-test:
+    profiles: ["test"]
+    image: rust:latest
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
+    command: ["/usr/local/cargo/bin/cargo", "test", "-p", "frontend", "--lib", "--tests", "--bin", "frontend"]
+
+  e2e-test:
+    profiles: ["test"]
+    image: mcr.microsoft.com/playwright:v1.51.1-noble
+    depends_on:
+      app:
+        condition: service_started
+      frontend:
+        condition: service_started
+    environment:
+      FRONTEND_URL: http://frontend:8080
+      BACKEND_URL: http://app:8000/api/v1
+      ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:-admin_local}
+      ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-AdminPass#2026!}
+      COORD_USERNAME: ${BOOTSTRAP_COORDINATOR_USERNAME:-coord_local}
+      COORD_PASSWORD: ${BOOTSTRAP_COORDINATOR_PASSWORD:-CoordPass#2026!}
+      PROCTOR_USERNAME: ${BOOTSTRAP_PROCTOR_USERNAME:-proctor_local}
+      PROCTOR_PASSWORD: ${BOOTSTRAP_PROCTOR_PASSWORD:-ProctorPass#2026!}
+      AUDITOR_USERNAME: ${BOOTSTRAP_AUDITOR_USERNAME:-auditor_local}
+      AUDITOR_PASSWORD: ${BOOTSTRAP_AUDITOR_PASSWORD:-AuditorPass#2026!}
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
+    command: ["node", "/workspace/e2e/fullstack_e2e.js"]
+
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eagle_seed
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_this_root_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-eagle_exam}
+      MYSQL_USER: ${MYSQL_USER:-eagle}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change_this_user_password}
+      DATABASE_URL: mysql://${MYSQL_USER:-eagle}:${MYSQL_PASSWORD:-change_this_user_password}@db:3306/${MYSQL_DATABASE:-eagle_exam}
+      JWT_SECRET: ${JWT_SECRET:-replace_with_long_random_secret}
+      AES_KEY_BASE64: ${AES_KEY_BASE64:-MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=}
+    command: ["/app/seed"]
+    restart: "no"
+
+volumes:
+  db_data:

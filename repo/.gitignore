@@ -1,0 +1,7 @@
+﻿# Ignore Rust build output
+/target/
+*.rs.bk
+.env
+.DS_Store
+.claude/
+.claude

@@ -1,0 +1,170 @@
+﻿[package]
+name = "backend"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+rocket.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+sqlx.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+uuid.workspace = true
+base64.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+rocket_cors = "0.6"
+bcrypt.workspace = true
+app_core = { path = "../app/core" }
+app_models = { path = "../app/models" }
+app_api_v1 = { path = "../app/api/v1" }
+app_services = { path = "../app/services" }
+
+[dev-dependencies]
+frontend = { path = "../frontend" }
+
+[[bin]]
+name = "backend"
+path = "src/main.rs"
+
+[[test]]
+name = "auth_policy_tests"
+path = "../unit_tests/auth_policy_tests.rs"
+
+[[test]]
+name = "cleansing_tests"
+path = "../unit_tests/cleansing_tests.rs"
+
+[[test]]
+name = "dedupe_tests"
+path = "../unit_tests/dedupe_tests.rs"
+
+[[test]]
+name = "encryption_tests"
+path = "../unit_tests/encryption_tests.rs"
+
+[[test]]
+name = "rbac_service_tests"
+path = "../unit_tests/rbac_service_tests.rs"
+
+[[test]]
+name = "file_handling_service_tests"
+path = "../unit_tests/file_handling_service_tests.rs"
+
+[[test]]
+name = "template_service_tests"
+path = "../unit_tests/template_service_tests.rs"
+
+[[test]]
+name = "output_service_tests"
+path = "../unit_tests/output_service_tests.rs"
+
+[[test]]
+name = "file_policy_tests"
+path = "../unit_tests/file_policy_tests.rs"
+
+[[test]]
+name = "session_core_tests"
+path = "../unit_tests/session_core_tests.rs"
+
+[[test]]
+name = "dedupe_service_tests"
+path = "../unit_tests/dedupe_service_tests.rs"
+
+[[test]]
+name = "api_support_tests"
+path = "../unit_tests/api_support_tests.rs"
+
+[[test]]
+name = "auth_service_tests"
+path = "../unit_tests/auth_service_tests.rs"
+
+[[test]]
+name = "candidate_service_tests"
+path = "../unit_tests/candidate_service_tests.rs"
+
+[[test]]
+name = "audit_service_tests"
+path = "../unit_tests/audit_service_tests.rs"
+
+[[test]]
+name = "messaging_service_tests"
+path = "../unit_tests/messaging_service_tests.rs"
+
+[[test]]
+name = "reporting_service_tests"
+path = "../unit_tests/reporting_service_tests.rs"
+
+[[test]]
+name = "cleansing_service_tests"
+path = "../unit_tests/cleansing_service_tests.rs"
+
+[[test]]
+name = "template_validation_tests"
+path = "../unit_tests/template_validation_tests.rs"
+
+[[test]]
+name = "shared_guard_tests"
+path = "../unit_tests/shared_guard_tests.rs"
+
+[[test]]
+name = "fullstack_contract_tests"
+path = "../API_tests/fullstack_contract_tests.rs"
+
+[[test]]
+name = "api_auth_tests"
+path = "../API_tests/auth_tests.rs"
+
+[[test]]
+name = "api_crud_tests"
+path = "../API_tests/crud_tests.rs"
+
+[[test]]
+name = "api_workflow_tests"
+path = "../API_tests/workflow_tests.rs"
+
+[[test]]
+name = "api_error_tests"
+path = "../API_tests/error_tests.rs"
+
+[[test]]
+name = "api_output_tests"
+path = "../API_tests/output_tests.rs"
+
+[[test]]
+name = "api_users_tests"
+path = "../API_tests/users_tests.rs"
+
+[[test]]
+name = "api_rooms_tests"
+path = "../API_tests/rooms_tests.rs"
+
+[[test]]
+name = "api_assets_tests"
+path = "../API_tests/assets_tests.rs"
+
+[[test]]
+name = "api_sessions_tests"
+path = "../API_tests/sessions_tests.rs"
+
+[[test]]
+name = "api_templates_tests"
+path = "../API_tests/templates_tests.rs"
+
+[[test]]
+name = "api_reports_tests"
+path = "../API_tests/reports_tests.rs"
+
+[[test]]
+name = "api_outputs_list_tests"
+path = "../API_tests/outputs_list_tests.rs"
+
+[[test]]
+name = "api_exports_tests"
+path = "../API_tests/exports_tests.rs"
+
+[[test]]
+name = "api_messages_merge_tests"
+path = "../API_tests/messages_merge_tests.rs"
