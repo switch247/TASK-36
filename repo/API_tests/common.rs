@@ -121,6 +121,22 @@ pub async fn setup_app() -> anyhow::Result<TestApp> {
             )
         })?;
 
+    // The mysql:8.0 image only grants MYSQL_USER privileges on MYSQL_DATABASE,
+    // so `eagle` cannot connect to the per-test DB without an explicit grant.
+    // Propagate privileges on the freshly-created schema to every (user, host)
+    // pair the test user is registered under.
+    let test_user = extract_user_from_url(&database_url).unwrap_or_else(|| "eagle".to_string());
+    if test_user != "root" {
+        grant_test_user_on_database(&admin_pool, &test_user, &test_database_name)
+            .await
+            .with_context(|| {
+                format!(
+                    "failed to grant privileges on `{test_database_name}` to test user `{test_user}`. \
+                     Admin user must have GRANT OPTION — use a root-level TEST_ADMIN_DATABASE_URL."
+                )
+            })?;
+    }
+
     let pool = connect_with_retries(&test_database_url, Duration::from_secs(30))
         .await
         .with_context(|| format!("failed to connect test DB URL: {test_database_url}"))?;
@@ -163,6 +179,60 @@ pub async fn setup_app() -> anyhow::Result<TestApp> {
 fn global_test_lock() -> &'static Mutex<()> {
     static TEST_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
     TEST_MUTEX.get_or_init(|| Mutex::new(()))
+}
+
+/// Parse the username out of a `mysql://user:pw@host:port/db` URL. We only
+/// need this to know which account to GRANT test-DB privileges to; other URL
+/// components are not required here.
+fn extract_user_from_url(url: &str) -> Option<String> {
+    let rest = url
+        .strip_prefix("mysql://")
+        .or_else(|| url.strip_prefix("mariadb://"))?;
+    let at_idx = rest.find('@')?;
+    let userinfo = &rest[..at_idx];
+    let user = userinfo.split(':').next()?;
+    if user.is_empty() {
+        None
+    } else {
+        Some(user.to_string())
+    }
+}
+
+/// Issue `GRANT ALL PRIVILEGES ON <db>.* TO '<test_user>'@'<host>'` for every
+/// host the test user is defined under in `mysql.user`. The MySQL docker
+/// image creates the default user as `user@%`, but a hand-provisioned MySQL
+/// may have `user@localhost` instead, so we grant for each registered host.
+async fn grant_test_user_on_database(
+    admin_pool: &MySqlPool,
+    test_user: &str,
+    database_name: &str,
+) -> anyhow::Result<()> {
+    let hosts: Vec<String> =
+        sqlx::query_scalar::<_, String>("SELECT host FROM mysql.user WHERE user = ?")
+            .bind(test_user)
+            .fetch_all(admin_pool)
+            .await
+            .with_context(|| format!("failed to enumerate mysql.user hosts for `{test_user}`"))?;
+
+    if hosts.is_empty() {
+        return Err(anyhow::anyhow!(
+            "user `{test_user}` does not exist in mysql.user — cannot grant privileges on `{database_name}`"
+        ));
+    }
+
+    for host in hosts {
+        let grant_sql = format!(
+            "GRANT ALL PRIVILEGES ON `{}`.* TO '{}'@'{}'",
+            database_name.replace('`', "``"),
+            test_user.replace('\'', "''"),
+            host.replace('\'', "''"),
+        );
+        sqlx::query(&grant_sql)
+            .execute(admin_pool)
+            .await
+            .with_context(|| format!("failed to execute `{grant_sql}`"))?;
+    }
+    Ok(())
 }
 
 /// Connect to MySQL, retrying for up to `max_wait` to tolerate a DB that is
