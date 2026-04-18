@@ -3,6 +3,7 @@ mod common;
 
 #[cfg(test)]
 mod tests {
+    use super::common;
     use app_services::messaging_service::MessagingService;
 
     #[rocket::async_test]
