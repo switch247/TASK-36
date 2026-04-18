@@ -68,16 +68,16 @@ impl Drop for TestApp {
 pub async fn setup_app() -> anyhow::Result<TestApp> {
     let test_lock = global_test_lock().lock().await;
 
-    let database_url = env::var("TEST_DATABASE_URL")
+    let explicit_database_url = env::var("TEST_DATABASE_URL")
         .ok()
-        .or_else(|| env::var("DATABASE_URL").ok())
-        .unwrap_or_else(|| {
-            "mysql://eagle:change_this_user_password@localhost:3306/eagle_exam".to_string()
-        });
-    if database_url.contains("change_this_user_password") {
-        return Err(anyhow::anyhow!(
-            "TEST_DATABASE_URL (or DATABASE_URL) must point to a reachable MySQL instance before running integration tests",
-        ));
+        .or_else(|| env::var("DATABASE_URL").ok());
+    let database_url = explicit_database_url.clone().unwrap_or_else(|| {
+        "mysql://eagle:change_this_user_password@localhost:3306/eagle_exam".to_string()
+    });
+    if explicit_database_url.is_none() {
+        eprintln!(
+            "[integration-tests] TEST_DATABASE_URL/DATABASE_URL not set; falling back to docker-compose default {database_url}"
+        );
     }
 
     let jwt_secret = env::var("TEST_JWT_SECRET")
@@ -85,26 +85,43 @@ pub async fn setup_app() -> anyhow::Result<TestApp> {
         .or_else(|| env::var("JWT_SECRET").ok())
         .unwrap_or_else(|| "test-jwt-secret-change-me".to_string());
 
-    let (admin_database_url, test_database_url, test_database_name) =
+    let (derived_admin_url, test_database_url, test_database_name) =
         derive_test_db_urls(&database_url)?;
+    // Per-test databases require a user with CREATE DATABASE privilege. The
+    // MYSQL_USER created by the mysql:8.0 image only has privileges on
+    // MYSQL_DATABASE, so callers should provide TEST_ADMIN_DATABASE_URL
+    // pointing at the root account. We fall back to the derived eagle@/mysql
+    // URL so existing setups keep working when the eagle user has been given
+    // CREATE privileges out of band.
+    let admin_database_url = env::var("TEST_ADMIN_DATABASE_URL")
+        .ok()
+        .unwrap_or(derived_admin_url);
 
-    let admin_pool = MySqlPoolOptions::new()
-        .max_connections(1)
-        .acquire_timeout(Duration::from_secs(10))
-        .connect(&admin_database_url)
+    let admin_pool = connect_with_retries(&admin_database_url, Duration::from_secs(60))
         .await
         .with_context(|| format!("failed to connect admin DB URL: {admin_database_url}"))?;
     sqlx::query(&format!("DROP DATABASE IF EXISTS `{}`", test_database_name))
         .execute(&admin_pool)
-        .await?;
+        .await
+        .with_context(|| {
+            format!(
+                "failed to drop test database `{test_database_name}` via {admin_database_url}. \
+                 The admin user must have CREATE/DROP privileges — set TEST_ADMIN_DATABASE_URL \
+                 to a root-level URL (mysql://root:...@host:3306/mysql)."
+            )
+        })?;
     sqlx::query(&format!("CREATE DATABASE `{}`", test_database_name))
         .execute(&admin_pool)
-        .await?;
+        .await
+        .with_context(|| {
+            format!(
+                "failed to create test database `{test_database_name}` via {admin_database_url}. \
+                 The admin user must have CREATE/DROP privileges — set TEST_ADMIN_DATABASE_URL \
+                 to a root-level URL (mysql://root:...@host:3306/mysql)."
+            )
+        })?;
 
-    let pool = MySqlPoolOptions::new()
-        .max_connections(1)
-        .acquire_timeout(Duration::from_secs(10))
-        .connect(&test_database_url)
+    let pool = connect_with_retries(&test_database_url, Duration::from_secs(30))
         .await
         .with_context(|| format!("failed to connect test DB URL: {test_database_url}"))?;
 
@@ -146,6 +163,37 @@ pub async fn setup_app() -> anyhow::Result<TestApp> {
 fn global_test_lock() -> &'static Mutex<()> {
     static TEST_MUTEX: OnceLock<Mutex<()>> = OnceLock::new();
     TEST_MUTEX.get_or_init(|| Mutex::new(()))
+}
+
+/// Connect to MySQL, retrying for up to `max_wait` to tolerate a DB that is
+/// still starting up. Each individual connection attempt has its own short
+/// acquire timeout so we poll rather than block.
+async fn connect_with_retries(url: &str, max_wait: Duration) -> anyhow::Result<MySqlPool> {
+    let deadline = std::time::Instant::now() + max_wait;
+    let mut last_err: Option<sqlx::Error> = None;
+    loop {
+        match MySqlPoolOptions::new()
+            .max_connections(1)
+            .acquire_timeout(Duration::from_secs(5))
+            .connect(url)
+            .await
+        {
+            Ok(pool) => return Ok(pool),
+            Err(err) => {
+                let now = std::time::Instant::now();
+                if now >= deadline {
+                    last_err = Some(err);
+                    break;
+                }
+                last_err = Some(err);
+                rocket::tokio::time::sleep(Duration::from_millis(500)).await;
+            }
+        }
+    }
+    Err(match last_err {
+        Some(err) => anyhow::Error::new(err),
+        None => anyhow::anyhow!("connect timed out"),
+    })
 }
 
 fn derive_test_db_urls(database_url: &str) -> anyhow::Result<(String, String, String)> {

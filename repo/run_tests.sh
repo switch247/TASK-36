@@ -23,6 +23,26 @@ export ROCKET_CORS_ORIGINS="http://frontend:8080,http://localhost:8080,http://12
 echo "[run_tests] Building and starting app stack"
 docker compose up -d --build --remove-orphans db seed app frontend
 
+MYSQL_USER="${MYSQL_USER:-eagle}"
+MYSQL_PASSWORD="${MYSQL_PASSWORD:-change_this_user_password}"
+MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-change_this_root_password}"
+
+echo "[run_tests] Waiting for MySQL to accept connections"
+ready=0
+for attempt in $(seq 1 120); do
+  if docker compose exec -T db mysqladmin ping -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" --silent >/dev/null 2>&1; then
+    ready=1
+    break
+  fi
+  sleep 2
+done
+if [ "$ready" -ne 1 ]; then
+  echo "[run_tests] MySQL did not become ready in time" >&2
+  docker compose logs db --tail 80 >&2 || true
+  exit 1
+fi
+echo "[run_tests] MySQL is accepting connections"
+
 echo "[run_tests] Running backend tests"
 docker compose --profile test run --build --rm --no-deps backend-test
 

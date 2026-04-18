@@ -24,6 +24,24 @@ try {
     Write-Host "[run_tests] Building and starting app stack"
     docker compose up -d --build --remove-orphans db seed app frontend
 
+    $rootPassword = if ($env:MYSQL_ROOT_PASSWORD) { $env:MYSQL_ROOT_PASSWORD } else { "change_this_root_password" }
+
+    Write-Host "[run_tests] Waiting for MySQL to accept connections"
+    $ready = $false
+    for ($i = 1; $i -le 120; $i++) {
+        docker compose exec -T db mysqladmin ping -h 127.0.0.1 -uroot -p"$rootPassword" --silent 2>$null | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            $ready = $true
+            break
+        }
+        Start-Sleep -Seconds 2
+    }
+    if (-not $ready) {
+        docker compose logs db --tail 80
+        Write-Error "[run_tests] MySQL did not become ready in time"
+    }
+    Write-Host "[run_tests] MySQL is accepting connections"
+
     Write-Host "[run_tests] Running backend tests"
     docker compose --profile test run --build --rm --no-deps backend-test
 

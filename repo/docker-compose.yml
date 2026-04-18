@@ -67,6 +67,7 @@ services:
         condition: service_healthy
     environment:
       TEST_DATABASE_URL: mysql://${MYSQL_USER:-eagle}:${MYSQL_PASSWORD:-change_this_user_password}@db:3306/${MYSQL_DATABASE:-eagle_exam}
+      TEST_ADMIN_DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD:-change_this_root_password}@db:3306/mysql
       TEST_JWT_SECRET: ${JWT_SECRET:-replace_with_long_random_secret}
       JWT_SECRET: ${JWT_SECRET:-replace_with_long_random_secret}
       DATABASE_URL: mysql://${MYSQL_USER:-eagle}:${MYSQL_PASSWORD:-change_this_user_password}@db:3306/${MYSQL_DATABASE:-eagle_exam}
