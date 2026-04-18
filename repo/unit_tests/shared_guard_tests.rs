@@ -3,6 +3,7 @@ mod common;
 
 #[cfg(test)]
 mod tests {
+    use super::common;
     use std::env;
 
     use rocket::http::{Header, Status};
@@ -10,7 +11,7 @@ mod tests {
     use rocket::serde::json::Json;
     use serde_json::{json, Value};
 
-    use app_api_v1::shared::ApiContext;
+    use app_api_v1::ApiContext;
     use app_services::auth_service::AuthService;
 
     #[rocket::get("/whoami")]

@@ -3,6 +3,7 @@ mod common;
 
 #[cfg(test)]
 mod tests {
+    use super::common;
     use chrono::{Duration, Utc};
     use app_services::reporting_service::ReportingService;
 

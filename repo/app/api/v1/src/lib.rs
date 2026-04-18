@@ -28,6 +28,14 @@ pub use templates::{create_template, delete_template, list_templates, lock_templ
 pub use scans::lookup_scan;
 pub use template_validation::{validate_against_template, validate_against_template_partial};
 
+// Narrow re-exports for downstream test targets and other crates that need to
+// reference request-guard or validator types without depending on this crate's
+// internal module layout. Keep this list tight — do not expose internal modules
+// wholesale.
+pub use errors::{ApiError, ApiErrorBody, ApiResult};
+pub use shared::{parse_prompt_datetime, ApiContext};
+pub use validators::{validate_room_capacity, validate_session_duration};
+
 use rocket::{routes, Route};
 
 pub fn routes_v1() -> Vec<Route> {

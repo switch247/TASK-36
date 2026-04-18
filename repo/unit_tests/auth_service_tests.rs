@@ -15,8 +15,8 @@ mod tests {
         AuthService::new(pool, secret.to_string())
     }
 
-    #[test]
-    fn hash_password_accepts_strong_password_and_rejects_weak_password() {
+    #[rocket::async_test]
+    async fn hash_password_accepts_strong_password_and_rejects_weak_password() {
         let service = test_service("unit-test-secret");
 
         let hashed = service
@@ -31,8 +31,8 @@ mod tests {
         assert!(msg.contains(&CoreError::PasswordPolicyViolation.to_string()));
     }
 
-    #[test]
-    fn validate_actor_jwt_only_returns_claims_actor() {
+    #[rocket::async_test]
+    async fn validate_actor_jwt_only_returns_claims_actor() {
         let service = test_service("jwt-secret-123");
         let claims = Claims {
             sub: "user-123".into(),
@@ -55,8 +55,8 @@ mod tests {
         assert!(matches!(actor.role, UserRole::Coordinator));
     }
 
-    #[test]
-    fn validate_actor_jwt_only_rejects_invalid_token() {
+    #[rocket::async_test]
+    async fn validate_actor_jwt_only_rejects_invalid_token() {
         let service = test_service("jwt-secret-123");
         let err = service
             .validate_actor_jwt_only("not-a-real-jwt")

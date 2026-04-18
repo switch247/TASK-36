@@ -3,6 +3,7 @@ mod common;
 
 #[cfg(test)]
 mod tests {
+    use super::common;
     use app_services::audit_service::AuditService;
     use serde_json::json;
 

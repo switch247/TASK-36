@@ -11,8 +11,8 @@ mod tests {
         CandidateService::new(pool, [7u8; 32])
     }
 
-    #[test]
-    fn normalize_dob_mmddyyyy_accepts_valid_input() {
+    #[rocket::async_test]
+    async fn normalize_dob_mmddyyyy_accepts_valid_input() {
         let service = test_service();
         let normalized = service
             .normalize_dob_mmddyyyy("03/27/2026")
@@ -20,8 +20,8 @@ mod tests {
         assert_eq!(normalized, "2026-03-27");
     }
 
-    #[test]
-    fn normalize_dob_mmddyyyy_rejects_invalid_calendar_date() {
+    #[rocket::async_test]
+    async fn normalize_dob_mmddyyyy_rejects_invalid_calendar_date() {
         let service = test_service();
         let err = service
             .normalize_dob_mmddyyyy("02/30/2026")
@@ -29,8 +29,8 @@ mod tests {
         assert!(err.to_string().contains("normalization error"));
     }
 
-    #[test]
-    fn candidate_service_preserves_configured_aes_key() {
+    #[rocket::async_test]
+    async fn candidate_service_preserves_configured_aes_key() {
         let service = test_service();
         assert_eq!(service.aes_key, [7u8; 32]);
     }

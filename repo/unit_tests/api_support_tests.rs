@@ -2,9 +2,9 @@
 mod tests {
     use chrono::NaiveDate;
 
-    use app_api_v1::errors::ApiError;
-    use app_api_v1::shared::parse_prompt_datetime;
-    use app_api_v1::validators::{validate_room_capacity, validate_session_duration};
+    use app_api_v1::{
+        parse_prompt_datetime, validate_room_capacity, validate_session_duration, ApiError,
+    };
     use app_core::types::{ApiActor, UserRole};
 
     #[test]

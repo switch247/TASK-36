@@ -3,6 +3,7 @@ mod common;
 
 #[cfg(test)]
 mod tests {
+    use super::common;
     use app_services::cleansing_service::CleansingService;
 
     #[rocket::async_test]
