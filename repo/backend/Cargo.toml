@@ -24,6 +24,7 @@ app_services = { path = "../app/services" }
 
 [dev-dependencies]
 frontend = { path = "../frontend" }
+jsonwebtoken.workspace = true
 
 [[bin]]
 name = "backend"
@@ -104,6 +105,14 @@ path = "../unit_tests/cleansing_service_tests.rs"
 [[test]]
 name = "template_validation_tests"
 path = "../unit_tests/template_validation_tests.rs"
+
+[[test]]
+name = "repository_tests"
+path = "../unit_tests/repository_tests.rs"
+
+[[test]]
+name = "backend_bootstrap_tests"
+path = "../unit_tests/backend_bootstrap_tests.rs"
 
 [[test]]
 name = "shared_guard_tests"

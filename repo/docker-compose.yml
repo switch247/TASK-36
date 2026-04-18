@@ -105,7 +105,7 @@ services:
     volumes:
       - .:/workspace
     working_dir: /workspace
-    command: ["node", "/workspace/e2e/fullstack_e2e.js"]
+    command: ["node", "/workspace/e2e/run_all_e2e.js"]
 
   seed:
     build:

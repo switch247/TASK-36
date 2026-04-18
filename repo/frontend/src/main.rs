@@ -1310,6 +1310,9 @@ pub fn table_attachments(rows: Vec<AttachmentRow>) -> Element {
 #[cfg(test)]
 mod component_tests;
 
+#[cfg(test)]
+mod additional_tests;
+
 // ---------------------------------------------------------------------------
 // Unit tests — exercise pure frontend helpers that do not depend on wasm/JS.
 // Run with: `cargo test -p frontend --bin frontend`.

@@ -125,7 +125,38 @@ async fn incident_rates_returns_data_for_reporting_roles() {
 #[rocket::async_test]
 async fn incident_rates_fallback_returns_array() {
     let app = setup_app().await.expect("setup");
-    let headers = login_as(&app.client, Role::Admin).await;
+    let headers = login_as(&app.client, Role::Coordinator).await;
+    let coord_id = user_id_for(&app.pool, COORD_USERNAME).await;
+
+    factory_session(&app.pool, "sess-inc-fallback", "Template A", 60, &coord_id).await;
+    factory_asset(
+        &app.pool,
+        "asset-inc-fallback-a",
+        "BOOK-INC-FALL-A",
+        "sess-inc-fallback",
+        &coord_id,
+    )
+    .await;
+    factory_asset(
+        &app.pool,
+        "asset-inc-fallback-b",
+        "BOOK-INC-FALL-B",
+        "sess-inc-fallback",
+        &coord_id,
+    )
+    .await;
+    sqlx::query(
+        "UPDATE assets
+         SET incident_count = CASE id
+            WHEN 'asset-inc-fallback-a' THEN 1
+            WHEN 'asset-inc-fallback-b' THEN 3
+            ELSE incident_count
+         END
+         WHERE id IN ('asset-inc-fallback-a', 'asset-inc-fallback-b')",
+    )
+    .execute(&app.pool)
+    .await
+    .expect("update fallback incident counts");
 
     let resp = attach_auth(
         app.client.get("/api/v1/operations/incident-rates"),
@@ -135,8 +166,15 @@ async fn incident_rates_fallback_returns_array() {
     .await;
     assert_eq!(resp.status(), Status::Ok);
     let rows: Vec<Value> = resp.into_json().await.expect("json");
-    // Fallback branch returns up to 50 rows — shape check only.
-    assert!(rows.len() <= 50);
+    let target = rows
+        .iter()
+        .find(|row| row["session_id"] == "sess-inc-fallback")
+        .expect("fallback should include seeded session");
+    let avg = target["avg_incidents"].as_f64().expect("avg_incidents as f64");
+    assert!(
+        (avg - 2.0).abs() < f64::EPSILON,
+        "expected seeded fallback average 2.0, got {avg}"
+    );
 }
 
 #[rocket::async_test]
@@ -201,6 +239,42 @@ async fn materials_inventory_returns_asset_rows() {
 async fn operations_alerts_returns_ok_with_within_days() {
     let app = setup_app().await.expect("setup");
     let headers = login_as(&app.client, Role::Coordinator).await;
+    let coord_id = user_id_for(&app.pool, COORD_USERNAME).await;
+
+    factory_session(&app.pool, "sess-alert-low-return", "Template A", 60, &coord_id).await;
+    factory_asset(
+        &app.pool,
+        "asset-alert-low-1",
+        "BOOK-ALERT-LOW-1",
+        "sess-alert-low-return",
+        &coord_id,
+    )
+    .await;
+    factory_asset(
+        &app.pool,
+        "asset-alert-low-2",
+        "BOOK-ALERT-LOW-2",
+        "sess-alert-low-return",
+        &coord_id,
+    )
+    .await;
+    sqlx::query(
+        "UPDATE assets
+         SET tracking_status = CASE id
+            WHEN 'asset-alert-low-1' THEN 'Collected'
+            WHEN 'asset-alert-low-2' THEN 'Prepared'
+            ELSE tracking_status
+         END,
+         incident_count = CASE id
+            WHEN 'asset-alert-low-1' THEN 0
+            WHEN 'asset-alert-low-2' THEN 2
+            ELSE incident_count
+         END
+         WHERE id IN ('asset-alert-low-1', 'asset-alert-low-2')",
+    )
+    .execute(&app.pool)
+    .await
+    .expect("seed alert rows");
 
     let resp = attach_auth(
         app.client.get("/api/v1/operations/alerts?within_days=60&limit=50"),
@@ -216,4 +290,18 @@ async fn operations_alerts_returns_ok_with_within_days() {
             "alerts row missing structured fields: {row}"
         );
     }
+    assert!(
+        rows.iter().any(|row| {
+            row["alert_type"] == "LowReturnRate"
+                && row["session_id"] == "sess-alert-low-return"
+        }),
+        "expected a low-return-rate alert for the seeded session"
+    );
+    assert!(
+        rows.iter().any(|row| {
+            row["alert_type"] == "HighIncident"
+                && row["asset_id"] == "asset-alert-low-2"
+        }),
+        "expected a high-incident alert for the seeded asset"
+    );
 }

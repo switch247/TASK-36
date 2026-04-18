@@ -172,13 +172,26 @@ async fn list_outputs_returns_recent_outputs() {
 async fn list_outputs_fallback_without_query_still_returns_rows() {
     let app = setup_app().await.expect("setup");
     let coord_headers = login_as(&app.client, Role::Coordinator).await;
-    let session_id = setup_session_for_print(&app).await;
+    let first_session_id = setup_session_for_print(&app).await;
+    let coord_id = user_id_for(&app.pool, COORD_USERNAME).await;
+    let second_session_id = "sess-output-fallback-second";
+    factory_session(&app.pool, second_session_id, "Template A", 60, &coord_id).await;
 
     attach_auth(
         app.client.post("/api/v1/outputs").json(&json!({
-            "session_id": session_id,
+            "session_id": first_session_id,
             "output_type": "AdmitCard",
             "mode": "Draft"
+        })),
+        &coord_headers,
+    )
+    .dispatch()
+    .await;
+    attach_auth(
+        app.client.post("/api/v1/outputs").json(&json!({
+            "session_id": second_session_id,
+            "output_type": "SummaryReport",
+            "mode": "FinalPrint"
         })),
         &coord_headers,
     )
@@ -190,7 +203,18 @@ async fn list_outputs_fallback_without_query_still_returns_rows() {
         .await;
     assert_eq!(resp.status(), Status::Ok);
     let rows: Vec<Value> = resp.into_json().await.expect("rows");
-    assert!(!rows.is_empty(), "fallback should still return recent outputs");
+    assert!(
+        rows.len() >= 2,
+        "fallback should return the generated outputs, got {} rows",
+        rows.len()
+    );
+    assert_eq!(rows[0]["session_id"], second_session_id);
+    assert_eq!(rows[0]["output_type"], "SummaryReport");
+    assert_eq!(rows[0]["mode"], "FinalPrint");
+    assert!(
+        rows.iter().any(|row| row["session_id"] == first_session_id),
+        "fallback should still include the earlier generated output"
+    );
 }
 
 #[rocket::async_test]

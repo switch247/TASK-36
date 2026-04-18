@@ -284,6 +284,7 @@ dependencies = [
  "bcrypt",
  "chrono",
  "frontend",
+ "jsonwebtoken",
  "rocket",
  "rocket_cors",
  "serde",
