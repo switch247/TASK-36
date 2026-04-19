@@ -10,7 +10,7 @@ use serde_json::Value;
 use sqlx::mysql::MySqlPoolOptions;
 use sqlx::{Executor, MySqlPool};
 
-use app_api_v1::routes_v1;
+use app_api_v1::{catchers_v1, routes_v1};
 use app_services::audit_service::AuditService;
 use app_services::auth_service::AuthService;
 use app_services::candidate_service::CandidateService;
@@ -100,6 +100,26 @@ pub async fn setup_app() -> anyhow::Result<TestApp> {
     let admin_pool = connect_with_retries(&admin_database_url, Duration::from_secs(60))
         .await
         .with_context(|| format!("failed to connect admin DB URL: {admin_database_url}"))?;
+
+    // MySQL 8.0 has binary logging on by default. Without SUPER, the test
+    // user (`eagle`) cannot `CREATE TRIGGER` unless the server has
+    // `log_bin_trust_function_creators` enabled (error 1419). Flip it here
+    // via the admin pool so tests work against any MySQL instance regardless
+    // of its startup flags. Best-effort: if the admin user lacks the right
+    // (e.g. caller passed a non-root TEST_ADMIN_DATABASE_URL), fall through —
+    // the operator may have enabled the flag at the server command line.
+    if let Err(err) = sqlx::query("SET GLOBAL log_bin_trust_function_creators = 1")
+        .execute(&admin_pool)
+        .await
+    {
+        eprintln!(
+            "[integration-tests] could not SET GLOBAL log_bin_trust_function_creators=1 \
+             via admin pool ({err}); relying on server-side configuration. \
+             If CREATE TRIGGER later fails with 1419, grant SYSTEM_VARIABLES_ADMIN to \
+             the admin user or pass --log-bin-trust-function-creators=ON to mysqld."
+        );
+    }
+
     sqlx::query(&format!("DROP DATABASE IF EXISTS `{}`", test_database_name))
         .execute(&admin_pool)
         .await
@@ -164,7 +184,8 @@ pub async fn setup_app() -> anyhow::Result<TestApp> {
         .manage(reporting_service)
         .manage(output_service)
         .manage(messaging_service)
-        .mount("/api/v1", routes_v1());
+        .mount("/api/v1", routes_v1())
+        .register("/", catchers_v1());
 
     let client = Client::tracked(rocket).await?;
     Ok(TestApp {
@@ -207,12 +228,17 @@ async fn grant_test_user_on_database(
     test_user: &str,
     database_name: &str,
 ) -> anyhow::Result<()> {
-    let hosts: Vec<String> =
-        sqlx::query_scalar::<_, String>("SELECT host FROM mysql.user WHERE user = ?")
-            .bind(test_user)
-            .fetch_all(admin_pool)
-            .await
-            .with_context(|| format!("failed to enumerate mysql.user hosts for `{test_user}`"))?;
+    // `mysql.user.host` is stored as CHAR with a binary collation in some
+    // server distributions (notably MariaDB 10+/12). sqlx's MySQL driver
+    // rejects decoding a BINARY column as Rust `String`, so cast explicitly
+    // to CHAR to get a textual column regardless of server flavor.
+    let hosts: Vec<String> = sqlx::query_scalar::<_, String>(
+        "SELECT CAST(host AS CHAR) FROM mysql.user WHERE user = ?",
+    )
+    .bind(test_user)
+    .fetch_all(admin_pool)
+    .await
+    .with_context(|| format!("failed to enumerate mysql.user hosts for `{test_user}`"))?;
 
     if hosts.is_empty() {
         return Err(anyhow::anyhow!(
@@ -716,9 +742,13 @@ async fn seed_templates(pool: &MySqlPool, created_by: &str) -> anyhow::Result<()
     ];
 
     for (template_id, version_no, snapshot) in snapshots {
+        // MySQL 8 and MariaDB both auto-validate a JSON-shaped string bound
+        // into a JSON column, so avoid `CAST(? AS JSON)` — MariaDB rejects
+        // that construct when the argument arrives via the binary prepared-
+        // statement protocol.
         sqlx::query(
             "INSERT INTO template_versions (id, template_id, version_no, snapshot, locked_for_final_print, created_by)
-             VALUES (?, ?, ?, CAST(? AS JSON), FALSE, ?)
+             VALUES (?, ?, ?, ?, FALSE, ?)
              ON DUPLICATE KEY UPDATE snapshot = VALUES(snapshot)",
         )
         .bind(uuid::Uuid::new_v4().to_string())

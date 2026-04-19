@@ -189,7 +189,7 @@ async fn seed_templates(pool: &MySqlPool, admin_id: &str) -> anyhow::Result<()> 
     for (template_id, version_no, snapshot) in templates {
         sqlx::query(
             "INSERT INTO template_versions (id, template_id, version_no, snapshot, locked_for_final_print, created_by)
-             VALUES (?, ?, ?, CAST(? AS JSON), FALSE, ?)
+             VALUES (?, ?, ?, ?, FALSE, ?)
              ON DUPLICATE KEY UPDATE snapshot = VALUES(snapshot)",
         )
         .bind(uuid::Uuid::new_v4().to_string())
@@ -231,7 +231,7 @@ async fn seed_candidates(pool: &MySqlPool, admin_id: &str) -> anyhow::Result<()>
     for (id, encrypted_dob, national_id, scanned_barcode, metadata_json) in candidates {
         sqlx::query(
             "INSERT INTO candidates (id, encrypted_dob, national_id, scanned_barcode, metadata, created_by)
-             VALUES (?, ?, ?, ?, CAST(? AS JSON), ?)
+             VALUES (?, ?, ?, ?, ?, ?)
              ON DUPLICATE KEY UPDATE national_id = VALUES(national_id), scanned_barcode = VALUES(scanned_barcode), metadata = VALUES(metadata)",
         )
         .bind(id)

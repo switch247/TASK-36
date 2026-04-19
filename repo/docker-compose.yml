@@ -3,6 +3,14 @@ services:
     image: mysql:8.0
     container_name: eagle_db
     restart: unless-stopped
+    # Binary logging is on by default in mysql:8.0. Without this flag, creating
+    # a trigger or stored function as a non-SUPER user (our `eagle` test user)
+    # fails with error 1419. Trusting function creators is standard for
+    # integration-test databases where every schema object is under repo
+    # control and reviewed in PRs.
+    command:
+      - mysqld
+      - --log-bin-trust-function-creators=ON
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_this_root_password}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-eagle_exam}

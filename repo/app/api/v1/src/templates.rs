@@ -93,7 +93,7 @@ pub async fn create_template(
         .map_err(|_| ApiError::forbidden("Only coordinators and admins can manage templates"))?;
     let user_id = actor_user_id(&ctx)?;
 
-    sqlx::query("INSERT INTO template_versions (id, template_id, version_no, snapshot, locked_for_final_print, created_by) VALUES (?, ?, ?, CAST(? AS JSON), ?, ?)")
+    sqlx::query("INSERT INTO template_versions (id, template_id, version_no, snapshot, locked_for_final_print, created_by) VALUES (?, ?, ?, ?, ?, ?)")
         .bind(uuid::Uuid::new_v4().to_string())
         .bind(&payload.template_id)
         .bind(payload.version_no)
@@ -154,7 +154,7 @@ pub async fn update_template(
     ensure_template_version_mutable(pool.inner(), template_id, version_no).await?;
 
     let result = sqlx::query(
-        "UPDATE template_versions SET snapshot = CAST(? AS JSON), locked_for_final_print = ? WHERE template_id = ? AND version_no = ?",
+        "UPDATE template_versions SET snapshot = ?, locked_for_final_print = ? WHERE template_id = ? AND version_no = ?",
     )
     .bind(payload.snapshot.to_string())
     .bind(payload.lock_for_final_print)

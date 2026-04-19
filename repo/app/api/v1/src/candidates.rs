@@ -47,6 +47,7 @@ pub struct CandidateRow {
     pub scanned_barcode: String,
     pub metadata: serde_json::Value,
     pub created_by: String,
+    pub created_at: chrono::NaiveDateTime,
 }
 
 async fn parse_and_enrich_candidate_metadata(
@@ -370,7 +371,7 @@ pub async fn list_candidates(
         .map(|v| format!("%{}%", v));
 
     let mut qb = QueryBuilder::<MySql>::new(
-        "SELECT id, '**/**/****' AS dob_masked, national_id, scanned_barcode, metadata, created_by FROM candidates",
+        "SELECT id, '**/**/****' AS dob_masked, national_id, scanned_barcode, metadata, created_by, created_at FROM candidates",
     );
 
     let mut has_where = false;
@@ -426,7 +427,7 @@ pub async fn get_candidate(
 
     let row = if is_admin(&ctx) {
         sqlx::query_as::<_, CandidateRow>(
-            "SELECT id, '**/**/****' AS dob_masked, national_id, scanned_barcode, metadata, created_by FROM candidates WHERE id = ?",
+            "SELECT id, '**/**/****' AS dob_masked, national_id, scanned_barcode, metadata, created_by, created_at FROM candidates WHERE id = ?",
         )
         .bind(id)
         .fetch_optional(pool.inner())
@@ -434,7 +435,7 @@ pub async fn get_candidate(
         .map_err(|_| ApiError::internal("failed to read candidate"))?
     } else {
         sqlx::query_as::<_, CandidateRow>(
-            "SELECT id, '**/**/****' AS dob_masked, national_id, scanned_barcode, metadata, created_by FROM candidates WHERE id = ? AND created_by = ?",
+            "SELECT id, '**/**/****' AS dob_masked, national_id, scanned_barcode, metadata, created_by, created_at FROM candidates WHERE id = ? AND created_by = ?",
         )
         .bind(id)
         .bind(user_id)
@@ -534,7 +535,7 @@ pub async fn update_candidate(
 
     let result = if is_admin(&ctx) {
         sqlx::query(
-            "UPDATE candidates SET scanned_barcode = ?, metadata = CAST(? AS JSON) WHERE id = ?",
+            "UPDATE candidates SET scanned_barcode = ?, metadata = ? WHERE id = ?",
         )
         .bind(&payload.scanned_barcode)
         .bind(&metadata_json)
@@ -543,7 +544,7 @@ pub async fn update_candidate(
         .await
         .map_err(|_| ApiError::internal("failed to update candidate"))?
     } else {
-        sqlx::query("UPDATE candidates SET scanned_barcode = ?, metadata = CAST(? AS JSON) WHERE id = ? AND created_by = ?")
+        sqlx::query("UPDATE candidates SET scanned_barcode = ?, metadata = ? WHERE id = ? AND created_by = ?")
             .bind(&payload.scanned_barcode)
             .bind(&metadata_json)
             .bind(id)

@@ -1,6 +1,7 @@
 mod assets;
 mod auth;
 mod candidates;
+mod catchers;
 mod errors;
 mod exports;
 mod outputs;
@@ -44,6 +45,7 @@ pub use users::{create_user, delete_user, list_users, update_user};
 // reference request-guard or validator types without depending on this crate's
 // internal module layout. Keep this list tight — do not expose internal modules
 // wholesale.
+pub use catchers::catchers_v1;
 pub use errors::{ApiError, ApiErrorBody, ApiResult};
 pub use shared::{parse_prompt_datetime, ApiContext};
 pub use validators::{validate_room_capacity, validate_session_duration};

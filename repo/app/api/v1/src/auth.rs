@@ -1,6 +1,7 @@
 use rocket::serde::json::Json;
 use rocket::{post, State};
 
+use app_core::errors::CoreError;
 use app_services::auth_service::AuthService;
 
 use crate::errors::{ApiError, ApiResult};
@@ -29,7 +30,12 @@ pub async fn login(
         .await
         .map_err(|err| {
             tracing::error!(error = %err, "login authentication failed");
-            ApiError::unauthorized("authentication failed")
+            match err.downcast_ref::<CoreError>() {
+                Some(CoreError::AccountLocked(until)) => {
+                    ApiError::unauthorized(format!("account locked until {until}"))
+                }
+                _ => ApiError::unauthorized("authentication failed"),
+            }
         })?;
 
     Ok(Json(LoginResponse {

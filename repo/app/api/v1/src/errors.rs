@@ -3,11 +3,25 @@ use rocket::request::Request;
 use rocket::response::{Responder, Response};
 use rocket::serde::{json::Json, Serialize};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ApiErrorBody {
     pub code: u16,
     pub message: String,
     pub details: Option<serde_json::Value>,
+}
+
+/// Wrapper used to stash a guard failure on the request's `local_cache` so a
+/// catcher can serialize the same JSON body that an inline handler would.
+/// Rocket drops the `Outcome::Error` payload before invoking the catcher; the
+/// catcher only receives Status + Request, so we thread the body through
+/// request-local storage ourselves.
+#[derive(Debug, Clone)]
+pub struct StashedApiError(pub ApiErrorBody);
+
+impl StashedApiError {
+    pub fn from_api_error(err: &ApiError) -> Self {
+        Self(err.body.clone())
+    }
 }
 
 #[derive(Debug)]

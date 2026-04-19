@@ -62,7 +62,7 @@ mod tests {
 
         sqlx::query(
             "INSERT INTO template_versions (id, template_id, version_no, snapshot, locked_for_final_print, created_by)
-             VALUES (?, ?, ?, CAST(? AS JSON), FALSE, ?)",
+             VALUES (?, ?, ?, ?, FALSE, ?)",
         )
         .bind(uuid::Uuid::new_v4().to_string())
         .bind("broken-template")

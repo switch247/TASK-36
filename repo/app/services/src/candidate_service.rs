@@ -31,7 +31,7 @@ impl CandidateService {
 
         sqlx::query(
             r#"INSERT INTO candidates (id, encrypted_dob, national_id, scanned_barcode, metadata, created_by)
-               VALUES (?, ?, ?, ?, CAST(? AS JSON), ?)"#,
+               VALUES (?, ?, ?, ?, ?, ?)"#,
         )
         .bind(candidate_id)
         .bind(encrypted_dob)

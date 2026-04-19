@@ -1,4 +1,4 @@
-use app_api_v1::routes_v1;
+use app_api_v1::{catchers_v1, routes_v1};
 use app_services::audit_service::AuditService;
 use app_services::auth_service::AuthService;
 use app_services::candidate_service::CandidateService;
@@ -55,7 +55,8 @@ async fn build_rocket() -> anyhow::Result<Rocket<Build>> {
         .manage(output_service)
         .manage(messaging_service)
         .attach(cors)
-        .mount("/api/v1", routes_v1()))
+        .mount("/api/v1", routes_v1())
+        .register("/", catchers_v1()))
 }
 
 fn build_cors() -> anyhow::Result<rocket_cors::Cors> {
