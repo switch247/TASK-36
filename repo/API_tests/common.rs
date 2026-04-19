@@ -520,6 +520,11 @@ async fn execute_migration_script(pool: &MySqlPool, script: &str) -> anyhow::Res
     let mut delimiter = ";".to_string();
     let mut statement = String::new();
 
+    // Defensively strip a leading UTF-8 BOM (U+FEFF). Some editors save SQL
+    // files with a BOM on Windows, which MySQL rejects as a 1064 syntax error
+    // because the invisible bytes appear before `CREATE TABLE`.
+    let script = script.strip_prefix('\u{feff}').unwrap_or(script);
+
     for raw_line in script.lines() {
         let trimmed = raw_line.trim();
         if trimmed.is_empty() || trimmed.starts_with("--") {
