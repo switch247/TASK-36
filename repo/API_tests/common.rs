@@ -8,7 +8,7 @@ use rocket::local::asynchronous::Client;
 use rocket::tokio::sync::{Mutex, MutexGuard};
 use serde_json::Value;
 use sqlx::mysql::MySqlPoolOptions;
-use sqlx::MySqlPool;
+use sqlx::{Executor, MySqlPool};
 
 use app_api_v1::routes_v1;
 use app_services::audit_service::AuditService;
@@ -517,13 +517,18 @@ async fn ensure_schema(pool: &MySqlPool) -> anyhow::Result<()> {
 }
 
 async fn execute_migration_script(pool: &MySqlPool, script: &str) -> anyhow::Result<()> {
-    let mut delimiter = ";".to_string();
-    let mut statement = String::new();
-
     // Defensively strip a leading UTF-8 BOM (U+FEFF). Some editors save SQL
     // files with a BOM on Windows, which MySQL rejects as a 1064 syntax error
     // because the invisible bytes appear before `CREATE TABLE`.
     let script = script.strip_prefix('\u{feff}').unwrap_or(script);
+
+    // Acquire one connection for the whole script so user/session variables
+    // (e.g. `@sql`, `@template_id_exists`) set by conditional-DDL migrations
+    // persist across every statement in the file.
+    let mut conn = pool.acquire().await?;
+
+    let mut delimiter = ";".to_string();
+    let mut statement = String::new();
 
     for raw_line in script.lines() {
         let trimmed = raw_line.trim();
@@ -544,17 +549,32 @@ async fn execute_migration_script(pool: &MySqlPool, script: &str) -> anyhow::Res
                 let new_len = finalized.len() - delimiter.len();
                 finalized.truncate(new_len);
             }
-            if !finalized.trim().is_empty() {
-                sqlx::query(finalized.trim()).execute(pool).await?;
+            let stmt = finalized.trim();
+            if !stmt.is_empty() {
+                execute_raw(&mut *conn, stmt).await?;
             }
             statement.clear();
         }
     }
 
-    if !statement.trim().is_empty() {
-        sqlx::query(statement.trim()).execute(pool).await?;
+    let tail = statement.trim();
+    if !tail.is_empty() {
+        execute_raw(&mut *conn, tail).await?;
     }
 
+    Ok(())
+}
+
+/// Execute a migration statement via MySQL's text protocol (`COM_QUERY`).
+/// Passing a `&str` directly to `Executor::execute` yields a query with no
+/// arguments, which the sqlx MySQL driver sends unprepared. This avoids
+/// `ER_UNSUPPORTED_PS` (1295) for statements that cannot go through
+/// `COM_STMT_PREPARE` — notably `PREPARE` / `EXECUTE` / `DEALLOCATE PREPARE`,
+/// used by conditional-DDL migrations to add columns/indexes idempotently.
+async fn execute_raw(conn: &mut sqlx::MySqlConnection, sql: &str) -> anyhow::Result<()> {
+    conn.execute(sql)
+        .await
+        .with_context(|| format!("failed to execute migration SQL: {sql}"))?;
     Ok(())
 }
 
