@@ -341,6 +341,38 @@ pub fn attach_auth<'a>(
     mut req: rocket::local::asynchronous::LocalRequest<'a>,
     headers: &[Header<'static>],
 ) -> rocket::local::asynchronous::LocalRequest<'a> {
+    // Rocket 0.5's local client rejects URIs containing literal spaces (or
+    // any non-RFC-3986 path char) with a 400 before dispatch. Several tests
+    // write URLs like `/api/v1/templates/Template A/1` with a literal space
+    // in the segment. Percent-encode unsafe bytes in the path and install a
+    // fresh Origin so routing can succeed — the route's `<template_id>`
+    // capture decodes back to the original string.
+    let uri_str = req.uri().to_string();
+    if uri_str
+        .bytes()
+        .any(|b| !b.is_ascii() || b == b' ' || b == b'"' || b == b'<' || b == b'>' || b == b'`' || b == b'\\' || b == b'{' || b == b'}' || b == b'|' || b == b'^')
+    {
+        let encoded: String = uri_str
+            .bytes()
+            .map(|b| match b {
+                b' ' => "%20".to_string(),
+                b'"' => "%22".to_string(),
+                b'<' => "%3C".to_string(),
+                b'>' => "%3E".to_string(),
+                b'`' => "%60".to_string(),
+                b'\\' => "%5C".to_string(),
+                b'{' => "%7B".to_string(),
+                b'}' => "%7D".to_string(),
+                b'|' => "%7C".to_string(),
+                b'^' => "%5E".to_string(),
+                _ => (b as char).to_string(),
+            })
+            .collect();
+        if let Ok(new_uri) = rocket::http::uri::Origin::parse_owned(encoded) {
+            // LocalRequest derefs to Request, which exposes set_uri.
+            req.set_uri(new_uri);
+        }
+    }
     for h in headers {
         req = req.header(h.clone());
     }

@@ -133,7 +133,7 @@ pub async fn dashboard_summary(
     ctx: ApiContext,
 ) -> ApiResult<Json<DashboardSummaryV2>> {
     RbacService::require_reporting(&ctx.actor.role)
-        .map_err(|_| ApiError::forbidden("role cannot view dashboard"))?;
+        .map_err(|_| ApiError::forbidden("role cannot view report dashboard"))?;
 
     let total_candidates: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM candidates")
         .fetch_one(pool.inner())

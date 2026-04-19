@@ -1410,25 +1410,33 @@ fn format_display_datetime(raw: &str) -> String {
         candidate = candidate.trim_end_matches(" UTC").to_string() + "Z";
     }
 
-    let date = js_sys::Date::new(&wasm_bindgen::JsValue::from_str(&candidate));
-    if date.get_time().is_nan() {
-        if let Some((year, month, day, hour24, minute)) = parse_datetime_components(trimmed) {
-            return format_mmddyyyy_hhmm_ampm(year, month, day, hour24, minute);
+    #[cfg(target_arch = "wasm32")]
+    {
+        let date = js_sys::Date::new(&wasm_bindgen::JsValue::from_str(&candidate));
+        if !date.get_time().is_nan() {
+            let month = date.get_month() + 1;
+            let day = date.get_date() as u32;
+            let year = date.get_full_year() as i32;
+            let hour24 = date.get_hours() as u32;
+            let minute = date.get_minutes() as u32;
+            let ampm = if hour24 >= 12 { "PM" } else { "AM" };
+            let mut hour12 = hour24 % 12;
+            if hour12 == 0 {
+                hour12 = 12;
+            }
+            return format!("{month:02}/{day:02}/{year:04} {hour12:02}:{minute:02} {ampm}");
         }
-        return raw.to_string();
     }
 
-    let month = date.get_month() + 1;
-    let day = date.get_date() as u32;
-    let year = date.get_full_year() as i32;
-    let hour24 = date.get_hours() as u32;
-    let minute = date.get_minutes() as u32;
-    let ampm = if hour24 >= 12 { "PM" } else { "AM" };
-    let mut hour12 = hour24 % 12;
-    if hour12 == 0 {
-        hour12 = 12;
+    // Non-wasm callers (integration tests) can't use js_sys::Date without a
+    // JS runtime — fall through to the pure-Rust parser.
+    if let Some((year, month, day, hour24, minute)) = parse_datetime_components(&candidate) {
+        return format_mmddyyyy_hhmm_ampm(year, month, day, hour24, minute);
     }
-    format!("{month:02}/{day:02}/{year:04} {hour12:02}:{minute:02} {ampm}")
+    if let Some((year, month, day, hour24, minute)) = parse_datetime_components(trimmed) {
+        return format_mmddyyyy_hhmm_ampm(year, month, day, hour24, minute);
+    }
+    raw.to_string()
 }
 
 fn format_display_date_opt(raw: Option<&str>) -> String {
@@ -1445,17 +1453,23 @@ fn format_display_date_opt(raw: Option<&str>) -> String {
     } else {
         format!("{trimmed}T00:00:00")
     };
-    let date = js_sys::Date::new(&wasm_bindgen::JsValue::from_str(&candidate));
-    if date.get_time().is_nan() {
-        if let Some((year, month, day, _, _)) = parse_datetime_components(trimmed) {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let date = js_sys::Date::new(&wasm_bindgen::JsValue::from_str(&candidate));
+        if !date.get_time().is_nan() {
+            let month = date.get_month() + 1;
+            let day = date.get_date() as u32;
+            let year = date.get_full_year() as i32;
             return format!("{month:02}/{day:02}/{year:04}");
         }
-        return trimmed.to_string();
     }
-    let month = date.get_month() + 1;
-    let day = date.get_date() as u32;
-    let year = date.get_full_year() as i32;
-    format!("{month:02}/{day:02}/{year:04}")
+    if let Some((year, month, day, _, _)) = parse_datetime_components(&candidate) {
+        return format!("{month:02}/{day:02}/{year:04}");
+    }
+    if let Some((year, month, day, _, _)) = parse_datetime_components(trimmed) {
+        return format!("{month:02}/{day:02}/{year:04}");
+    }
+    trimmed.to_string()
 }
 
 fn parse_datetime_components(raw: &str) -> Option<(i32, u32, u32, u32, u32)> {
@@ -1557,21 +1571,35 @@ async fn post_json<TReq: Serialize, TResp: for<'de> Deserialize<'de>>(
 }
 
 fn load_session() -> Option<LoginResponse> {
-    let storage = web_sys::window()?.local_storage().ok().flatten()?;
-    let raw = storage.get_item(SESSION_STORAGE_KEY).ok().flatten()?;
-    serde_json::from_str::<LoginResponse>(&raw).ok()
+    #[cfg(target_arch = "wasm32")]
+    {
+        let storage = web_sys::window()?.local_storage().ok().flatten()?;
+        let raw = storage.get_item(SESSION_STORAGE_KEY).ok().flatten()?;
+        return serde_json::from_str::<LoginResponse>(&raw).ok();
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        // Native unit-test builds have no browser storage; behave as empty.
+        None
+    }
 }
-fn save_session(s: &LoginResponse) {
-    if let Some(st) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) {
-        let _ = st.set_item(
-            SESSION_STORAGE_KEY,
-            &serde_json::to_string(s).unwrap_or_default(),
-        );
+fn save_session(_s: &LoginResponse) {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(st) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) {
+            let _ = st.set_item(
+                SESSION_STORAGE_KEY,
+                &serde_json::to_string(_s).unwrap_or_default(),
+            );
+        }
     }
 }
 fn clear_session() {
-    if let Some(st) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) {
-        let _ = st.remove_item(SESSION_STORAGE_KEY);
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(st) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) {
+            let _ = st.remove_item(SESSION_STORAGE_KEY);
+        }
     }
 }
 

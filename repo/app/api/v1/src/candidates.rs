@@ -50,11 +50,16 @@ pub struct CandidateRow {
     pub created_at: chrono::NaiveDateTime,
 }
 
-async fn parse_and_enrich_candidate_metadata(
+/// Parse the raw `metadata_json`, apply alias mapping
+/// (`full_name`→`name`, `zipcode`→`zip_code`, `town`→`city`), and run the
+/// ZIP/city cleansing check. Returns the cleaned JSON value **without**
+/// synthesizing defaults, so the caller can run template validation on the
+/// user-provided input — otherwise a "Required" rule is silently satisfied
+/// by a placeholder like "Unknown Candidate" that the client never supplied.
+async fn clean_candidate_metadata(
     metadata_json: &str,
     cleansing_service: &CleansingService,
-    normalized_dob: &str,
-) -> ApiResult<String> {
+) -> ApiResult<serde_json::Value> {
     let mut metadata: serde_json::Value = serde_json::from_str(metadata_json)
         .map_err(|_| ApiError::bad_request("metadata_json must be valid JSON"))?;
 
@@ -104,7 +109,41 @@ async fn parse_and_enrich_candidate_metadata(
         metadata = serde_json::json!({});
     }
 
+    // A blank-string `name` is equivalent to absence for validation purposes —
+    // otherwise a payload like `"name": "   "` would slip through a `Required`
+    // check. Strip it here so template validation treats it as missing.
+    if metadata
+        .get("name")
+        .and_then(serde_json::Value::as_str)
+        .map(str::trim)
+        .map(str::is_empty)
+        .unwrap_or(false)
+    {
+        if let Some(obj) = metadata.as_object_mut() {
+            obj.remove("name");
+        }
+    }
+
+    Ok(metadata)
+}
+
+/// Apply operator-facing defaults (placeholder name/room), optional
+/// normalization bundle, and the cleansing summary. Only runs **after**
+/// template validation has confirmed the user supplied every Required
+/// field, so the defaults here can never mask a validation error.
+async fn enrich_candidate_metadata(
+    mut metadata: serde_json::Value,
+    cleansing_service: &CleansingService,
+    normalized_dob: &str,
+) -> ApiResult<String> {
+    // `clean_candidate_metadata` already ran the ZIP/city check and returned
+    // an error if it failed, so any metadata reaching this function passed.
+    let zip_city_valid = true;
+
     // Missing-value defaults (explicitly captured for operators/reviewers).
+    // Template validation ran upstream, so any field the template declared
+    // Required is already present; these defaults only fill truly optional
+    // holes (e.g. room_id for walk-ins) for downstream consumers.
     let mut defaults_applied: Vec<String> = Vec::new();
     if metadata
         .get("name")
@@ -223,14 +262,12 @@ pub async fn create_candidate(
         .normalize_dob_mmddyyyy(&payload.date_of_birth)
         .map_err(|_| ApiError::bad_request("date_of_birth must use MM/DD/YYYY"))?;
 
-    let enriched_metadata_json = parse_and_enrich_candidate_metadata(
-        &payload.metadata_json,
-        cleansing_service.inner(),
-        &normalized_dob,
-    )
-    .await?;
-    let metadata_obj: serde_json::Value = serde_json::from_str(&enriched_metadata_json)
-        .map_err(|_| ApiError::internal("failed to parse enriched metadata"))?;
+    // 1. Clean the raw input (parse + alias-map + zip/city check) but do NOT
+    //    apply placeholder defaults yet. Template validation must run against
+    //    what the client actually supplied.
+    let cleaned_metadata =
+        clean_candidate_metadata(&payload.metadata_json, cleansing_service.inner()).await?;
+
     let mut template_payload = std::collections::HashMap::new();
     template_payload.insert(
         "date_of_birth".to_string(),
@@ -244,10 +281,10 @@ pub async fn create_candidate(
         "scanned_barcode".to_string(),
         serde_json::Value::String(payload.scanned_barcode.clone()),
     );
-    if let Some(name) = metadata_obj.get("name").cloned() {
+    if let Some(name) = cleaned_metadata.get("name").cloned() {
         template_payload.insert("name".to_string(), name);
     }
-    if let Some(room_id) = metadata_obj.get("room_id").cloned() {
+    if let Some(room_id) = cleaned_metadata.get("room_id").cloned() {
         template_payload.insert("room_id".to_string(), room_id);
     }
     let template_id = payload
@@ -255,7 +292,18 @@ pub async fn create_candidate(
         .as_deref()
         .filter(|x| !x.trim().is_empty())
         .unwrap_or("candidate-registration");
+    // 2. Validate against the template. A Required rule that the user did
+    //    not satisfy (e.g. missing `name`) returns 400 here, never 201.
     validate_against_template(pool.inner(), template_id, template_payload).await?;
+
+    // 3. Validation passed — safe to apply operator-facing defaults + the
+    //    normalization/cleansing-summary bundle that goes into the row.
+    let enriched_metadata_json = enrich_candidate_metadata(
+        cleaned_metadata,
+        cleansing_service.inner(),
+        &normalized_dob,
+    )
+    .await?;
 
     if let Some(existing_candidate_id) = candidate_service
         .find_exact_duplicate(&payload.national_id, &payload.scanned_barcode)
@@ -505,23 +553,18 @@ pub async fn update_candidate(
         ));
     }
 
-    let enriched_metadata_json = parse_and_enrich_candidate_metadata(
-        &payload.metadata_json,
-        cleansing_service.inner(),
-        existing_normalized_dob,
-    )
-    .await?;
-    let metadata: serde_json::Value = serde_json::from_str(&enriched_metadata_json)
-        .map_err(|_| ApiError::internal("failed to parse enriched metadata"))?;
+    let cleaned_metadata =
+        clean_candidate_metadata(&payload.metadata_json, cleansing_service.inner()).await?;
+
     let mut template_payload = std::collections::HashMap::new();
     template_payload.insert(
         "scanned_barcode".to_string(),
         serde_json::Value::String(payload.scanned_barcode.clone()),
     );
-    if let Some(name) = metadata.get("name").cloned() {
+    if let Some(name) = cleaned_metadata.get("name").cloned() {
         template_payload.insert("name".to_string(), name);
     }
-    if let Some(room_id) = metadata.get("room_id").cloned() {
+    if let Some(room_id) = cleaned_metadata.get("room_id").cloned() {
         template_payload.insert("room_id".to_string(), room_id);
     }
     let template_id = payload
@@ -530,8 +573,13 @@ pub async fn update_candidate(
         .filter(|x| !x.trim().is_empty())
         .unwrap_or("candidate-registration");
     validate_against_template_partial(pool.inner(), template_id, template_payload).await?;
-    let metadata_json = serde_json::to_string(&metadata)
-        .map_err(|_| ApiError::internal("failed to serialize candidate metadata"))?;
+
+    let metadata_json = enrich_candidate_metadata(
+        cleaned_metadata,
+        cleansing_service.inner(),
+        existing_normalized_dob,
+    )
+    .await?;
 
     let result = if is_admin(&ctx) {
         sqlx::query(

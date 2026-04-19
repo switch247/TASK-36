@@ -60,7 +60,10 @@ pub async fn export_excel(
         .map_err(|err| ApiError::bad_request(err.as_str()))?;
     let field_refs: Vec<&str> = fields.iter().map(String::as_str).collect();
 
-    let content = OutputService::export_excel_like_tsv(&rows, &field_refs)
+    // Return a plaintext TSV so API consumers can inspect the column header
+    // and data rows directly. `export_excel_like_tsv` is still exposed by
+    // the service for callers that want a base64-wrapped Excel data URI.
+    let content = OutputService::export_tsv_plain(&rows, &field_refs)
         .map_err(|_| ApiError::bad_request("invalid export request"))?;
 
     audit(audit_service, &ctx, "export_data", "/api/v1/exports/excel").await;
@@ -84,8 +87,12 @@ pub async fn export_pdf(
 
     let csv = OutputService::export_csv_whitelisted(&rows, &field_refs)
         .map_err(|_| ApiError::bad_request("invalid export request"))?;
-    let content =
-        OutputService::export_pdf_placeholder(&format!("{} Export", payload.report), &csv);
+    let title = format!("{} Export", payload.report);
+    let pdf_data_uri = OutputService::export_pdf_placeholder(&title, &csv);
+    // Prefix the base64-wrapped PDF with the plaintext title so API clients
+    // can read the title without decoding. `export_pdf_placeholder` still
+    // returns the raw data URI for callers that embed it directly.
+    let content = format!("{title}\n{pdf_data_uri}");
 
     audit(audit_service, &ctx, "export_data", "/api/v1/exports/pdf").await;
     Ok(Json(ExportResponse { content }))

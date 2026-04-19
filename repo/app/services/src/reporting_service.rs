@@ -110,11 +110,14 @@ impl ReportingService {
             SELECT
                 session_id,
                 COUNT(*) as total_assets,
-                SUM(CASE WHEN tracking_status IN ('Collected', 'Archived') THEN 1 ELSE 0 END) as returned_assets,
-                CASE
+                -- MySQL SUM(<int expr>) returns DECIMAL by default; cast to
+                -- SIGNED so sqlx decodes directly into Rust i64 without a
+                -- BIGINT/DECIMAL type mismatch.
+                CAST(SUM(CASE WHEN tracking_status IN ('Collected', 'Archived') THEN 1 ELSE 0 END) AS SIGNED) as returned_assets,
+                CAST(CASE
                     WHEN COUNT(*) = 0 THEN 0.0
                     ELSE ROUND((SUM(CASE WHEN tracking_status IN ('Collected', 'Archived') THEN 1 ELSE 0 END) / COUNT(*) * 100.0), 2)
-                END as return_rate_pct
+                END AS DOUBLE) as return_rate_pct
             FROM assets
             WHERE session_id IS NOT NULL AND session_id <> ''
             GROUP BY session_id

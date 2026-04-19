@@ -21,7 +21,7 @@ async fn create_read_update_delete_candidate_with_auth() {
         "date_of_birth": "03/27/2001",
         "national_id": "ID00112233",
         "scanned_barcode": "BAR-001",
-        "metadata_json": "{\"room_id\":\"room-a\"}"
+        "metadata_json": "{\"name\":\"Cand One\",\"room_id\":\"room-a\"}"
     });
 
     let response = common::attach_auth(
@@ -106,7 +106,7 @@ async fn duplicate_candidate_returns_409() {
         "date_of_birth": "03/27/2001",
         "national_id": "ID009999",
         "scanned_barcode": "BAR-DUP",
-        "metadata_json": "{\"room_id\":\"room-a\"}"
+        "metadata_json": "{\"name\":\"Cand Dup\",\"room_id\":\"room-a\"}"
     });
 
     let first = common::attach_auth(
@@ -240,7 +240,7 @@ async fn cross_user_access_returns_404() {
         "date_of_birth": "03/27/2001",
         "national_id": "ID004444",
         "scanned_barcode": "BAR-OWNED",
-        "metadata_json": "{\"room_id\":\"room-a\"}"
+        "metadata_json": "{\"name\":\"Cand Owned\",\"room_id\":\"room-a\"}"
     });
 
     let created = common::attach_auth(

@@ -19,7 +19,7 @@ async fn workflow_create_candidate_session_output_export() {
         "date_of_birth": "03/27/2001",
         "national_id": "IDFLOW123",
         "scanned_barcode": "BAR-FLOW",
-        "metadata_json": "{\"room_id\":\"room-x\"}"
+        "metadata_json": "{\"name\":\"Cand Flow\",\"room_id\":\"room-x\"}"
     });
     let response = common::attach_auth(
         app.client
@@ -190,7 +190,7 @@ async fn concurrent_duplicate_candidate_submission_conflict() {
         "date_of_birth": "03/27/2001",
         "national_id": "IDCONCURRENT",
         "scanned_barcode": "BAR-CONCURRENT",
-        "metadata_json": "{\"room_id\":\"room-x\"}"
+        "metadata_json": "{\"name\":\"Cand Concurrent\",\"room_id\":\"room-x\"}"
     });
 
     let first = common::attach_auth(

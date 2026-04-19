@@ -385,6 +385,50 @@ impl OutputService {
         ))
     }
 
+    /// Tab-separated text rendering for API consumers that need a plaintext
+    /// header/body payload (spreadsheet apps also open this directly).
+    pub fn export_tsv_plain(rows: &[serde_json::Value], fields: &[&str]) -> Result<String> {
+        if fields.is_empty() {
+            return Err(anyhow!("at least one field is required"));
+        }
+        fn cell(value: &str) -> String {
+            value.replace('\t', " ").replace('\n', " ").replace('\r', " ")
+        }
+
+        let mut out = String::new();
+        out.push_str(
+            &fields
+                .iter()
+                .map(|f| cell(f))
+                .collect::<Vec<_>>()
+                .join("\t"),
+        );
+        out.push('\n');
+
+        for row in rows {
+            let cols: Vec<String> = fields
+                .iter()
+                .map(|field| {
+                    let raw = row
+                        .get(*field)
+                        .map(|v| {
+                            if let Some(s) = v.as_str() {
+                                s.to_string()
+                            } else {
+                                v.to_string()
+                            }
+                        })
+                        .unwrap_or_default();
+                    cell(&raw)
+                })
+                .collect();
+            out.push_str(&cols.join("\t"));
+            out.push('\n');
+        }
+
+        Ok(out)
+    }
+
     pub fn export_pdf_placeholder(document_title: &str, body: &str) -> String {
         // Minimal real PDF generation (single page, Helvetica).
         fn esc(s: &str) -> String {

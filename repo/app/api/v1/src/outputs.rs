@@ -112,6 +112,7 @@ pub async fn generate_output(
             if msg.contains("forbidden:") {
                 ApiError::forbidden("role cannot final-print")
             } else {
+                tracing::error!(error = %err, "generate_print_output failed");
                 ApiError::internal("failed to generate output")
             }
         })?;

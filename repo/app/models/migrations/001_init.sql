@@ -103,6 +103,11 @@ CREATE TABLE IF NOT EXISTS template_versions (
     FOREIGN KEY (created_by) REFERENCES users(id)
 );
 
+-- Audit tables intentionally omit FK constraints on the actor columns.
+-- Audit/change history records must survive the deletion or renaming of
+-- the originating user, and system-internal recorders may reference synthetic
+-- actor ids (health checks, background jobs) that never have a matching
+-- users row. `changed_by` / `actor_user_id` are still indexed for lookup.
 CREATE TABLE IF NOT EXISTS entity_change_history (
     id CHAR(36) PRIMARY KEY,
     entity_name VARCHAR(64) NOT NULL,
@@ -112,7 +117,7 @@ CREATE TABLE IF NOT EXISTS entity_change_history (
     new_state JSON NULL,
     changed_by CHAR(36) NOT NULL,
     changed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (changed_by) REFERENCES users(id)
+    INDEX idx_entity_change_history_changed_by (changed_by)
 );
 
 CREATE TABLE IF NOT EXISTS audit_logs (
@@ -122,7 +127,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     resource VARCHAR(255) NOT NULL,
     ip_address VARCHAR(45) NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (actor_user_id) REFERENCES users(id)
+    INDEX idx_audit_logs_actor_user_id (actor_user_id)
 );
 
 CREATE TABLE IF NOT EXISTS zip_city_reference (
@@ -132,6 +137,9 @@ CREATE TABLE IF NOT EXISTS zip_city_reference (
     country VARCHAR(64) NOT NULL DEFAULT 'KE'
 );
 
+-- `created_by` is intentionally un-FK'd: message drafts may be produced by
+-- system actors (schedulers, alert routers) whose ids don't exist in users,
+-- and must outlive user deletion.
 CREATE TABLE IF NOT EXISTS message_drafts (
     id CHAR(36) PRIMARY KEY,
     channel ENUM('SMS', 'Email') NOT NULL,
@@ -140,14 +148,14 @@ CREATE TABLE IF NOT EXISTS message_drafts (
     body TEXT NOT NULL,
     created_by CHAR(36) NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (created_by) REFERENCES users(id)
+    INDEX idx_message_drafts_created_by (created_by)
 );
 
 CREATE TABLE IF NOT EXISTS print_outputs (
     id CHAR(36) PRIMARY KEY,
     session_id CHAR(36) NOT NULL,
     output_type ENUM('AdmitCard', 'SeatingChart', 'DoorSign', 'ProctorPacket', 'SummaryReport') NOT NULL,
-    mode ENUM('TestPrint', 'FinalPrint') NOT NULL,
+    mode ENUM('Draft', 'TestPrint', 'FinalPrint') NOT NULL,
     watermark VARCHAR(255) NULL,
     payload LONGTEXT NOT NULL,
     created_by CHAR(36) NOT NULL,
