@@ -129,6 +129,7 @@ pub async fn generate_output(
 }
 
 #[get("/outputs?<page>&<limit>&<sort_by>&<sort_order>&<filter>")]
+#[allow(clippy::too_many_arguments)] // Rocket binds each query param as a separate argument.
 pub async fn list_outputs(
     pool: &State<MySqlPool>,
     audit_service: &State<AuditService>,

@@ -8,8 +8,14 @@ use std::time::Duration;
 use wasm_bindgen_futures::spawn_local;
 
 const API_BASE_DEFAULT: &str = "http://localhost:8000/api/v1";
+// Only referenced inside `cfg(target_arch = "wasm32")` helpers and tests; on
+// native non-test lib builds (exported via `#[path] mod app;` in lib.rs) it's
+// unreferenced — silence dead_code only there.
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 const SESSION_STORAGE_KEY: &str = "proctorops_auth_session";
 
+// Binary entrypoint; dead in the lib target (reused via `#[path] mod app;`).
+#[allow(dead_code)]
 fn main() {
     dioxus::launch(App);
 }
@@ -264,6 +270,8 @@ pub struct AttachmentRow {
     pub size_bytes: i64,
     pub captured_at: String,
 }
+// Only constructed in unit tests (see `additional_tests.rs`).
+#[cfg_attr(not(test), allow(dead_code))]
 #[derive(Debug, Deserialize)]
 struct AttachmentFileResp {
     file_name: String,
@@ -373,9 +381,9 @@ fn Dashboard() -> Element {
         return rsx! { div { class: "p-6", "Redirecting..." } };
     };
     let toast_ctx = use_context::<ToastCtx>();
-    let mut loading = use_signal(|| true);
+    let loading = use_signal(|| true);
     let mut loaded = use_signal(|| false);
-    let mut summary = use_signal(DashboardSummary::default);
+    let summary = use_signal(DashboardSummary::default);
     if !loaded() {
         loaded.set(true);
         let fetch_sess = sess.clone();
@@ -479,7 +487,7 @@ pub fn dashboard_view(s: DashboardSummary) -> Element {
 }
 
 pub fn trend_points(s: &DashboardSummary) -> String {
-    let values = vec![
+    let values = [
         s.total_candidates.max(0) as f64,
         s.total_rooms.max(0) as f64,
         s.total_sessions_this_week.max(0) as f64,
@@ -550,10 +558,10 @@ fn candidates_page() -> Element {
         return spinner();
     };
     let toast_ctx = use_context::<ToastCtx>();
-    let mut loading = use_signal(|| true);
+    let loading = use_signal(|| true);
     let mut loaded = use_signal(|| false);
-    let mut rows = use_signal(Vec::<CandidateRow>::new);
-    let mut room_options = use_signal(Vec::<RoomRow>::new);
+    let rows = use_signal(Vec::<CandidateRow>::new);
+    let room_options = use_signal(Vec::<RoomRow>::new);
     let mut dob = use_signal(String::new);
     let mut nid = use_signal(String::new);
     let mut bar = use_signal(String::new);
@@ -656,9 +664,9 @@ fn rooms_page() -> Element {
         return spinner();
     };
     let toast_ctx = use_context::<ToastCtx>();
-    let mut loading = use_signal(|| true);
+    let loading = use_signal(|| true);
     let mut loaded = use_signal(|| false);
-    let mut rows = use_signal(Vec::<RoomRow>::new);
+    let rows = use_signal(Vec::<RoomRow>::new);
     let mut cap = use_signal(String::new);
     let mut loc = use_signal(String::new);
     let mut template_id = use_signal(|| "room-config".to_string());
@@ -711,9 +719,9 @@ fn proctors_page() -> Element {
         return spinner();
     };
     let toast_ctx = use_context::<ToastCtx>();
-    let mut loading = use_signal(|| true);
+    let loading = use_signal(|| true);
     let mut loaded = use_signal(|| false);
-    let mut users = use_signal(Vec::<UserRow>::new);
+    let users = use_signal(Vec::<UserRow>::new);
     let mut username = use_signal(String::new);
     let mut password = use_signal(String::new);
     if !loaded() {
@@ -769,9 +777,9 @@ fn exams_page() -> Element {
         return spinner();
     };
     let toast_ctx = use_context::<ToastCtx>();
-    let mut loading = use_signal(|| true);
+    let loading = use_signal(|| true);
     let mut loaded = use_signal(|| false);
-    let mut rows = use_signal(Vec::<SessionRow>::new);
+    let rows = use_signal(Vec::<SessionRow>::new);
     let mut template_name = use_signal(|| "base-template".to_string());
     let mut duration = use_signal(|| "90".to_string());
     let mut starts_at = use_signal(|| "04/10/2026 09:00 AM".to_string());
@@ -834,9 +842,9 @@ fn list_page_sessions() -> Element {
         return spinner();
     };
     let toast_ctx = use_context::<ToastCtx>();
-    let mut loading = use_signal(|| true);
+    let loading = use_signal(|| true);
     let mut loaded = use_signal(|| false);
-    let mut rows = use_signal(Vec::<SessionRow>::new);
+    let rows = use_signal(Vec::<SessionRow>::new);
     let mut code = use_signal(String::new);
     let mut scan_intent = use_signal(|| "candidate_lookup".to_string());
     if !loaded() {
@@ -876,9 +884,9 @@ fn list_page_assets() -> Element {
         return spinner();
     };
     let toast_ctx = use_context::<ToastCtx>();
-    let mut loading = use_signal(|| true);
+    let loading = use_signal(|| true);
     let mut loaded = use_signal(|| false);
-    let mut rows = use_signal(Vec::<AssetRow>::new);
+    let rows = use_signal(Vec::<AssetRow>::new);
     if !loaded() {
         loaded.set(true);
         let fetch_sess = sess.clone();
@@ -905,12 +913,12 @@ fn reports_page() -> Element {
         return spinner();
     };
     let toast_ctx = use_context::<ToastCtx>();
-    let mut loading = use_signal(|| true);
+    let loading = use_signal(|| true);
     let mut loaded = use_signal(|| false);
-    let mut incident_rows = use_signal(Vec::<IncidentRow>::new);
-    let mut return_rows = use_signal(Vec::<ReturnRateRow>::new);
-    let mut inventory_rows = use_signal(Vec::<MaterialInventoryRow>::new);
-    let mut alert_rows = use_signal(Vec::<AlertRow>::new);
+    let incident_rows = use_signal(Vec::<IncidentRow>::new);
+    let return_rows = use_signal(Vec::<ReturnRateRow>::new);
+    let inventory_rows = use_signal(Vec::<MaterialInventoryRow>::new);
+    let alert_rows = use_signal(Vec::<AlertRow>::new);
     let mut draft_recipient = use_signal(String::new);
     let mut draft_body = use_signal(String::new);
     if !loaded() {
@@ -1071,9 +1079,9 @@ fn templates_page() -> Element {
         return spinner();
     };
     let toast_ctx = use_context::<ToastCtx>();
-    let mut loading = use_signal(|| true);
+    let loading = use_signal(|| true);
     let mut loaded = use_signal(|| false);
-    let mut rows = use_signal(Vec::<TemplateRow>::new);
+    let rows = use_signal(Vec::<TemplateRow>::new);
     let mut template_id = use_signal(|| "candidate-registration".to_string());
     let mut ver = use_signal(String::new);
     let mut snapshot_json = use_signal(|| {
@@ -1137,11 +1145,11 @@ fn outputs_page() -> Element {
         return spinner();
     };
     let toast_ctx = use_context::<ToastCtx>();
-    let mut loading = use_signal(|| true);
+    let loading = use_signal(|| true);
     let mut loaded = use_signal(|| false);
-    let mut rows = use_signal(Vec::<OutputRow>::new);
-    let mut attachments = use_signal(Vec::<AttachmentRow>::new);
-    let mut session_options = use_signal(Vec::<SessionRow>::new);
+    let rows = use_signal(Vec::<OutputRow>::new);
+    let attachments = use_signal(Vec::<AttachmentRow>::new);
+    let session_options = use_signal(Vec::<SessionRow>::new);
     let mut sid = use_signal(String::new);
     let mut otype = use_signal(String::new);
     let mut mode = use_signal(String::new);
@@ -1264,9 +1272,9 @@ fn admin_page() -> Element {
         return spinner();
     };
     let toast_ctx = use_context::<ToastCtx>();
-    let mut loading = use_signal(|| true);
+    let loading = use_signal(|| true);
     let mut loaded = use_signal(|| false);
-    let mut users = use_signal(Vec::<UserRow>::new);
+    let users = use_signal(Vec::<UserRow>::new);
     let mut user = use_signal(String::new);
     let mut pass = use_signal(String::new);
     let mut role = use_signal(String::new);
@@ -1570,6 +1578,9 @@ async fn post_json<TReq: Serialize, TResp: for<'de> Deserialize<'de>>(
     resp.json::<TResp>().await.map_err(|e| e.to_string())
 }
 
+// Called from the App() component on wasm32 and from unit tests on native;
+// appears dead in the lib target where App() is not re-exported.
+#[allow(dead_code)]
 fn load_session() -> Option<LoginResponse> {
     #[cfg(target_arch = "wasm32")]
     {

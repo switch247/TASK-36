@@ -220,6 +220,7 @@ pub async fn dashboard_summary(
 }
 
 #[get("/operations/seat-utilization?<page>&<limit>&<sort_by>&<sort_order>&<filter>")]
+#[allow(clippy::too_many_arguments)] // Rocket binds each query param as a separate argument.
 pub async fn seat_utilization(
     reporting_service: &State<ReportingService>,
     audit_service: &State<AuditService>,
@@ -281,6 +282,7 @@ pub async fn seat_utilization(
 }
 
 #[get("/operations/near-expiry-alerts?<page>&<limit>&<sort_by>&<sort_order>&<filter>")]
+#[allow(clippy::too_many_arguments)] // Rocket binds each query param as a separate argument.
 pub async fn near_expiry_alerts(
     reporting_service: &State<ReportingService>,
     audit_service: &State<AuditService>,
@@ -343,6 +345,7 @@ pub async fn near_expiry_alerts(
 }
 
 #[get("/operations/incident-rates?<page>&<limit>&<sort_by>&<sort_order>&<filter>")]
+#[allow(clippy::too_many_arguments)] // Rocket binds each query param as a separate argument.
 pub async fn incident_rates(
     reporting_service: &State<ReportingService>,
     audit_service: &State<AuditService>,
@@ -402,6 +405,7 @@ pub async fn incident_rates(
 }
 
 #[get("/operations/return-rates?<page>&<limit>&<sort_by>&<sort_order>&<filter>")]
+#[allow(clippy::too_many_arguments)] // Rocket binds each query param as a separate argument.
 pub async fn return_rates(
     reporting_service: &State<ReportingService>,
     audit_service: &State<AuditService>,
@@ -465,6 +469,7 @@ pub async fn return_rates(
 }
 
 #[get("/operations/materials-inventory?<page>&<limit>&<sort_by>&<sort_order>&<filter>")]
+#[allow(clippy::too_many_arguments)] // Rocket binds each query param as a separate argument.
 pub async fn materials_inventory(
     reporting_service: &State<ReportingService>,
     audit_service: &State<AuditService>,

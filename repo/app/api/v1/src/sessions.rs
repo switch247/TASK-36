@@ -144,6 +144,7 @@ pub async fn create_session(
 }
 
 #[get("/sessions?<page>&<limit>&<sort_by>&<sort_order>&<filter>")]
+#[allow(clippy::too_many_arguments)] // Rocket binds each query param as a separate argument.
 pub async fn list_sessions(
     pool: &State<MySqlPool>,
     audit_service: &State<AuditService>,

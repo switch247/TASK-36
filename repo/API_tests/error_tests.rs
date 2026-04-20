@@ -53,7 +53,7 @@ async fn forbidden_role_returns_403() {
     let body: serde_json::Value = response.into_json().await.expect("error body");
     assert_eq!(body["code"].as_u64(), Some(403));
     assert!(
-        body["message"].as_str().unwrap_or("").len() > 0,
+        !body["message"].as_str().unwrap_or("").is_empty(),
         "forbidden response must carry a message"
     );
 }

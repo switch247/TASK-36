@@ -392,7 +392,7 @@ impl OutputService {
             return Err(anyhow!("at least one field is required"));
         }
         fn cell(value: &str) -> String {
-            value.replace('\t', " ").replace('\n', " ").replace('\r', " ")
+            value.replace(['\t', '\n', '\r'], " ")
         }
 
         let mut out = String::new();

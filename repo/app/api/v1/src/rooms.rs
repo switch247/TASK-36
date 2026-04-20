@@ -112,6 +112,7 @@ pub async fn create_room(
 }
 
 #[get("/rooms?<page>&<limit>&<sort_by>&<sort_order>&<filter>")]
+#[allow(clippy::too_many_arguments)] // Rocket binds each query param as a separate argument.
 pub async fn list_rooms(
     pool: &State<MySqlPool>,
     audit_service: &State<AuditService>,

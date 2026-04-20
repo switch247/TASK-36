@@ -28,6 +28,10 @@ pub const PROCTOR_PASSWORD: &str = "ProctorPass#2026!";
 pub const AUDITOR_USERNAME: &str = "auditor_local";
 pub const AUDITOR_PASSWORD: &str = "AuditorPass#2026!";
 
+// common.rs is included via `#[path]` into many test binaries; not every
+// binary reads both `client` and `pool`, which makes them appear dead in
+// those individual compilation contexts.
+#[allow(dead_code)]
 pub struct TestApp {
     pub client: Client,
     pub pool: MySqlPool,
@@ -266,7 +270,6 @@ async fn grant_test_user_on_database(
 /// acquire timeout so we poll rather than block.
 async fn connect_with_retries(url: &str, max_wait: Duration) -> anyhow::Result<MySqlPool> {
     let deadline = std::time::Instant::now() + max_wait;
-    let mut last_err: Option<sqlx::Error> = None;
     loop {
         match MySqlPoolOptions::new()
             .max_connections(1)
@@ -276,20 +279,13 @@ async fn connect_with_retries(url: &str, max_wait: Duration) -> anyhow::Result<M
         {
             Ok(pool) => return Ok(pool),
             Err(err) => {
-                let now = std::time::Instant::now();
-                if now >= deadline {
-                    last_err = Some(err);
-                    break;
+                if std::time::Instant::now() >= deadline {
+                    return Err(anyhow::Error::new(err));
                 }
-                last_err = Some(err);
                 rocket::tokio::time::sleep(Duration::from_millis(500)).await;
             }
         }
     }
-    Err(match last_err {
-        Some(err) => anyhow::Error::new(err),
-        None => anyhow::anyhow!("connect timed out"),
-    })
 }
 
 fn derive_test_db_urls(database_url: &str) -> anyhow::Result<(String, String, String)> {
@@ -610,7 +606,7 @@ async fn execute_migration_script(pool: &MySqlPool, script: &str) -> anyhow::Res
             }
             let stmt = finalized.trim();
             if !stmt.is_empty() {
-                execute_raw(&mut *conn, stmt).await?;
+                execute_raw(&mut conn, stmt).await?;
             }
             statement.clear();
         }
@@ -618,7 +614,7 @@ async fn execute_migration_script(pool: &MySqlPool, script: &str) -> anyhow::Res
 
     let tail = statement.trim();
     if !tail.is_empty() {
-        execute_raw(&mut *conn, tail).await?;
+        execute_raw(&mut conn, tail).await?;
     }
 
     Ok(())
@@ -637,6 +633,9 @@ async fn execute_raw(conn: &mut sqlx::MySqlConnection, sql: &str) -> anyhow::Res
     Ok(())
 }
 
+// Available as test-infrastructure for per-test data cleanup; per-database
+// isolation makes it unused today, keep for ad-hoc test rewrites.
+#[allow(dead_code)]
 async fn reset_data(pool: &MySqlPool) -> anyhow::Result<()> {
     let resets = [
         // audit_logs is immutable via DELETE trigger; TRUNCATE bypasses row triggers in MySQL.

@@ -16,6 +16,9 @@ use sqlx::mysql::MySqlPoolOptions;
 use std::env;
 use tracing_subscriber::EnvFilter;
 
+// Live in the backend binary; dead in `backend_bootstrap_tests` which
+// `include!`s this file but only exercises `build_cors` / `init_tracing`.
+#[allow(dead_code)]
 async fn build_rocket() -> anyhow::Result<Rocket<Build>> {
     let database_url = env::var("DATABASE_URL")?;
     let jwt_secret = env::var("JWT_SECRET")?;
@@ -75,7 +78,7 @@ fn build_cors() -> anyhow::Result<rocket_cors::Cors> {
     };
 
     CorsOptions {
-        allowed_origins: allowed_origins,
+        allowed_origins,
         allowed_methods: vec!["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"]
             .into_iter()
             .map(|m| m.parse().expect("valid CORS method"))
@@ -89,6 +92,7 @@ fn build_cors() -> anyhow::Result<rocket_cors::Cors> {
 }
 
 #[rocket::main]
+#[allow(dead_code)] // entrypoint in the binary; dead in `backend_bootstrap_tests`.
 async fn main() {
     init_tracing();
 
@@ -108,6 +112,7 @@ fn init_tracing() {
         .try_init();
 }
 
+#[allow(dead_code)] // called only from `main`; dead in `backend_bootstrap_tests`.
 async fn run() -> anyhow::Result<()> {
     let rocket = build_rocket().await?;
     tracing::info!("launching backend");

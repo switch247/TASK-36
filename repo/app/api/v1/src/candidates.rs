@@ -382,6 +382,7 @@ pub async fn create_candidate(
 }
 
 #[get("/candidates?<page>&<limit>&<sort_by>&<sort_order>&<filter>")]
+#[allow(clippy::too_many_arguments)] // Rocket binds each query param as a separate argument.
 pub async fn list_candidates(
     pool: &State<MySqlPool>,
     audit_service: &State<AuditService>,
