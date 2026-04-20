@@ -172,7 +172,7 @@ pub async fn dashboard_summary(
     })?;
 
     let recent_outputs = sqlx::query_as::<_, RecentOutputRow>(
-        "SELECT id, output_type, mode, created_at FROM print_outputs ORDER BY created_at DESC LIMIT 5",
+        "SELECT id, output_type, mode, created_at FROM print_outputs ORDER BY created_at DESC, id DESC LIMIT 5",
     )
     .fetch_all(pool.inner())
     .await
