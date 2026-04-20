@@ -150,7 +150,7 @@ pub async fn list_outputs(
     };
 
     let mut rows = sqlx::query_as::<_, OutputRow>(
-        "SELECT id, session_id, output_type, mode, created_at FROM print_outputs ORDER BY created_at DESC",
+        "SELECT id, session_id, output_type, mode, created_at FROM print_outputs ORDER BY created_at DESC, id DESC",
     )
     .fetch_all(pool.inner())
     .await
@@ -185,7 +185,7 @@ pub async fn list_outputs_fallback(
         .map_err(|_| ApiError::forbidden("role cannot list outputs"))?;
 
     let rows = sqlx::query_as::<_, OutputRow>(
-        "SELECT id, session_id, output_type, mode, created_at FROM print_outputs ORDER BY created_at DESC LIMIT 50",
+        "SELECT id, session_id, output_type, mode, created_at FROM print_outputs ORDER BY created_at DESC, id DESC LIMIT 50",
     )
     .fetch_all(pool.inner())
     .await

@@ -159,7 +159,7 @@ CREATE TABLE IF NOT EXISTS print_outputs (
     watermark VARCHAR(255) NULL,
     payload LONGTEXT NOT NULL,
     created_by CHAR(36) NOT NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     FOREIGN KEY (session_id) REFERENCES exam_sessions(id),
     FOREIGN KEY (created_by) REFERENCES users(id)
 );

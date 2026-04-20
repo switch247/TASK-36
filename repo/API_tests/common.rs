@@ -566,6 +566,7 @@ async fn ensure_schema(pool: &MySqlPool) -> anyhow::Result<()> {
         include_str!("../app/models/migrations/004_candidate_uniqueness.sql"),
         include_str!("../app/models/migrations/005_attachment_blob.sql"),
         include_str!("../app/models/migrations/006_session_assignments.sql"),
+        include_str!("../app/models/migrations/007_print_outputs_created_at_precision.sql"),
     ];
     for script in scripts {
         execute_migration_script(pool, script).await?;
