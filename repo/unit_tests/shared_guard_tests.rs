@@ -11,7 +11,7 @@ mod tests {
     use rocket::serde::json::Json;
     use serde_json::{json, Value};
 
-    use app_api_v1::ApiContext;
+    use app_api_v1::{catchers_v1, ApiContext};
     use app_services::auth_service::AuthService;
 
     #[rocket::get("/whoami")]
@@ -31,7 +31,8 @@ mod tests {
         let auth_service = AuthService::new(pool, jwt_secret);
         let rocket = rocket::build()
             .manage(auth_service)
-            .mount("/", rocket::routes![whoami]);
+            .mount("/", rocket::routes![whoami])
+            .register("/", catchers_v1());
         rocket::local::asynchronous::Client::tracked(rocket)
             .await
             .expect("tracked client")

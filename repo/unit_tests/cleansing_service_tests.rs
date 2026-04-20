@@ -25,8 +25,12 @@ mod tests {
             .expect("missing"));
     }
 
-    #[test]
-    fn normalize_record_combines_unit_currency_and_date_normalization() {
+    // `MySqlPool::drop` schedules cleanup on the current Tokio runtime, so
+    // constructing a pool inside a synchronous `#[test]` panics at end-of-scope
+    // with "this functionality requires a Tokio context". Run the body under
+    // `#[rocket::async_test]` so the pool is dropped inside a live runtime.
+    #[rocket::async_test]
+    async fn normalize_record_combines_unit_currency_and_date_normalization() {
         let pool = sqlx::mysql::MySqlPoolOptions::new()
             .connect_lazy("mysql://user:pass@localhost:3306/test_db")
             .expect("lazy pool");
@@ -55,8 +59,8 @@ mod tests {
         assert!(CleansingService::parse_dob("not-a-date").is_err());
     }
 
-    #[test]
-    fn normalize_record_rejects_invalid_units_currency_and_dates() {
+    #[rocket::async_test]
+    async fn normalize_record_rejects_invalid_units_currency_and_dates() {
         let pool = sqlx::mysql::MySqlPoolOptions::new()
             .connect_lazy("mysql://user:pass@localhost:3306/test_db")
             .expect("lazy pool");

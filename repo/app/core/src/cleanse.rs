@@ -30,6 +30,13 @@ pub fn standardize_currency_to_usd(
     }
 
     let normalized_currency = currency.trim().to_uppercase();
+    if normalized_currency.len() != 3
+        || !normalized_currency.chars().all(|c| c.is_ascii_uppercase())
+    {
+        return Err(CoreError::NormalizationError(format!(
+            "unsupported currency: {currency}"
+        )));
+    }
     let usd_value = if normalized_currency == "USD" {
         amount
     } else {
