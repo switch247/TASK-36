@@ -8,6 +8,11 @@ use std::time::Duration;
 use wasm_bindgen_futures::spawn_local;
 
 const API_BASE_DEFAULT: &str = "http://localhost:8000/api/v1";
+
+// Bundle the local Tailwind CSS through Dioxus's asset pipeline so `dx serve`
+// actually serves it (previously referenced as a bare `/tailwind.css` path,
+// which the dev server does not map to `frontend/static/`).
+const TAILWIND_CSS: Asset = asset!("/static/tailwind.css");
 // Only referenced inside `cfg(target_arch = "wasm32")` helpers and tests; on
 // native non-test lib builds (exported via `#[path] mod app;` in lib.rs) it's
 // unreferenced — silence dead_code only there.
@@ -324,7 +329,7 @@ fn App() -> Element {
     });
 
     rsx! {
-        document::Stylesheet { href: "/tailwind.css" }
+        document::Stylesheet { href: TAILWIND_CSS }
         Router::<Route> {}
         if let Some(t) = toast() {
             div { class: "fixed top-4 right-4 z-50 text-white px-4 py-2 rounded shadow-lg {toast_bg(&t.kind)}", "{t.text}" }
