@@ -1,0 +1,10 @@
+{
+  "name": "eaglepoint-task-36-e2e",
+  "private": true,
+  "scripts": {
+    "e2e": "node run_local_e2e.js"
+  },
+  "dependencies": {
+    "playwright": "1.51.1"
+  }
+}
