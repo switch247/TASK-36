@@ -57,6 +57,7 @@ async function createCandidateFlow(page, unique) {
   await page.getByPlaceholder('National ID').fill(`ID-${unique}`);
   await page.getByPlaceholder('Barcode').fill(`BAR-${unique}`);
   await page.getByPlaceholder('Candidate Name').fill(`Candidate ${unique}`);
+  await page.locator('select').first().selectOption({ index: 1 });
   await page.getByRole('button', { name: 'Create' }).click();
   await expectToast(page, 'Candidate created');
   await page.getByText(`BAR-${unique}`, { exact: false }).waitFor({ timeout: 30000 });
