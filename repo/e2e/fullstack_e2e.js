@@ -108,7 +108,7 @@ async function createCandidateFlow(page, unique) {
 async function createSessionAndAssignmentFlow(page, unique) {
   await page.getByRole('link', { name: 'Exams' }).click();
   await page.getByRole('heading', { name: 'Exams' }).waitFor({ timeout: 30000 });
-  await page.getByPlaceholder('Template Name').fill('Template A');
+  await page.getByPlaceholder('Template Name').fill('base-template');
   await page.getByPlaceholder('Duration Minutes').fill('75');
   await page.getByPlaceholder('Starts (MM/DD/YYYY hh:mm AM/PM)').fill('04/10/2026 09:00 AM');
   await page.getByPlaceholder('Ends (MM/DD/YYYY hh:mm AM/PM)').fill('04/10/2026 10:15 AM');
@@ -118,7 +118,7 @@ async function createSessionAndAssignmentFlow(page, unique) {
   const sessionsResp = await api(page, '/sessions?page=1&limit=200');
   assert.equal(sessionsResp.status(), 200);
   const sessions = await sessionsResp.json();
-  const createdSession = sessions.find((row) => row.duration_minutes === 75 && row.template_name === 'Template A');
+  const createdSession = sessions.find((row) => row.duration_minutes === 75 && row.template_name === 'base-template');
   assert.ok(createdSession, 'created exam session should be discoverable via API');
 
   const usersResp = await api(page, '/users');
