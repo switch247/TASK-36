@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://frontend:8080';
-const BACKEND_URL = process.env.BACKEND_URL || 'http://app:8000/api/v1';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://app:8001/api/v1';
 
 const creds = {
   admin: { username: process.env.ADMIN_USERNAME || 'admin_local', password: process.env.ADMIN_PASSWORD || 'AdminPass#2026!' },

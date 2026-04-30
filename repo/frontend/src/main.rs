@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use wasm_bindgen_futures::spawn_local;
 
-const API_BASE_DEFAULT: &str = "http://localhost:8000/api/v1";
+const API_BASE_DEFAULT: &str = "http://localhost:8001/api/v1";
 
 // Bundle the local Tailwind CSS through Dioxus's asset pipeline so `dx serve`
 // actually serves it (previously referenced as a bare `/tailwind.css` path,

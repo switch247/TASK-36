@@ -3,7 +3,7 @@ info:
   title: Eagle Exam Ops API
   version: 0.4.0
 servers:
-  - url: http://localhost:8000/api/v1
+  - url: http://localhost:8001/api/v1
 components:
   securitySchemes:
     BearerAuth:

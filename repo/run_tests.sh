@@ -29,7 +29,7 @@ run_in_test_runner() {
     -e JWT_SECRET="${JWT_SECRET:-replace_with_long_random_secret}" \
     -e DATABASE_URL="mysql://${MYSQL_USER:-eagle}:${MYSQL_PASSWORD:-change_this_user_password}@db:3306/${MYSQL_DATABASE:-eagle_exam}" \
     -e FRONTEND_URL="http://frontend" \
-    -e BACKEND_URL="http://app:8000/api/v1" \
+    -e BACKEND_URL="http://app:8001/api/v1" \
     -e ADMIN_USERNAME="${BOOTSTRAP_ADMIN_USERNAME:-admin_local}" \
     -e ADMIN_PASSWORD="${BOOTSTRAP_ADMIN_PASSWORD:-AdminPass#2026!}" \
     -e COORD_USERNAME="${BOOTSTRAP_COORDINATOR_USERNAME:-coord_local}" \
@@ -77,7 +77,7 @@ wait_for_http() {
 echo "[run_tests] Cleaning previous test stack state"
 cleanup
 
-export API_BASE="http://app:8000/api/v1"
+export API_BASE="http://app:8001/api/v1"
 export ROCKET_CORS_ORIGINS="http://frontend:8080,http://localhost:8080,http://127.0.0.1:8080"
 
 echo "[run_tests] Building and starting app stack"
@@ -107,7 +107,7 @@ fi
 echo "[run_tests] MySQL is accepting connections"
 
 echo "[run_tests] Waiting for backend HTTP"
-wait_for_http "http://app:8000/api/v1/health" "Backend"
+wait_for_http "http://app:8001/api/v1/health" "Backend"
 
 echo "[run_tests] Waiting for frontend HTTP"
 wait_for_http "http://frontend" "Frontend"

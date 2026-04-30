@@ -18,7 +18,7 @@ try {
     Write-Host "[run_tests] Cleaning previous test stack state"
     Cleanup-TestStack
 
-    $env:API_BASE = "http://app:8000/api/v1"
+    $env:API_BASE = "http://app:8001/api/v1"
     $env:ROCKET_CORS_ORIGINS = "http://frontend:8080,http://localhost:8080,http://127.0.0.1:8080"
 
     Write-Host "[run_tests] Building and starting app stack"

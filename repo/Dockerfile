@@ -58,6 +58,6 @@ COPY --from=builder /usr/src/eagle/target/release/seed /app/seed
 COPY backend/Rocket.toml /app/Rocket.toml
 
 ENV ROCKET_CONFIG=/app/Rocket.toml
-EXPOSE 8000
+EXPOSE 8001
 
 CMD ["/app/backend"]

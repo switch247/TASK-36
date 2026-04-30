@@ -25,14 +25,14 @@ This single command builds and starts every service:
 - Rust/Rocket backend API
 - Dioxus frontend web app
 
-Wait until the logs show the backend listening on port 8000 and the frontend serving on port 8080.
+Wait until the logs show the backend listening on port 8001 and the frontend serving on port 8080.
 
 ## Access
 
 | Service     | URL                            |
 |-------------|--------------------------------|
 | Frontend    | http://localhost:8080          |
-| Backend API | http://localhost:8000/api/v1   |
+| Backend API | http://localhost:8001/api/v1   |
 | MySQL       | localhost:3306 (internal only) |
 
 ## Demo Credentials
@@ -53,7 +53,7 @@ All four roles are pre-seeded and ready to use:
 1. Log in as admin and capture the JWT + session id:
 
    ```
-   curl -s -X POST http://localhost:8000/api/v1/auth/login \
+   curl -s -X POST http://localhost:8001/api/v1/auth/login \
      -H "Content-Type: application/json" \
      -d '{"username":"admin_local","password":"AdminPass#2026!"}'
    ```
@@ -72,7 +72,7 @@ All four roles are pre-seeded and ready to use:
 2. Call a protected endpoint using the returned credentials:
 
    ```
-   curl -s http://localhost:8000/api/v1/users \
+   curl -s http://localhost:8001/api/v1/users \
      -H "Authorization: Bearer <jwt>" \
      -H "x-session-id: <session_id>"
    ```
