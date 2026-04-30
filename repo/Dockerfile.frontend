@@ -29,14 +29,13 @@ COPY . .
 # Build the web assets in release mode
 WORKDIR /usr/src/eagle/frontend
 RUN dx build --release --platform web
+RUN test -f dist/index.html
 
 # 2. Runtime Stage
 FROM nginx:alpine
 
-
-# Copy the static assets from the builder stage
-# If you later configure Dioxus to output a 'dist' directory, update this path accordingly.
-COPY --from=builder /usr/src/eagle/frontend/static /usr/share/nginx/html
+# Copy the compiled frontend into nginx.
+COPY --from=builder /usr/src/eagle/frontend/dist/ /usr/share/nginx/html/
 
 EXPOSE 80
 
