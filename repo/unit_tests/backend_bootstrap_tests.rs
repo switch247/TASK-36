@@ -16,7 +16,7 @@ mod backend_main {
         fn build_cors_accepts_custom_origin_list() {
             std::env::set_var(
                 "ROCKET_CORS_ORIGINS",
-                "http://localhost:8080,http://127.0.0.1:8080,http://frontend:8080",
+                "http://frontend,http://frontend:8080,http://localhost:8080,http://127.0.0.1:8080",
             );
             let cors = build_cors();
             std::env::remove_var("ROCKET_CORS_ORIGINS");

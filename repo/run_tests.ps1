@@ -19,7 +19,7 @@ try {
     Cleanup-TestStack
 
     $env:API_BASE = "http://app:8001/api/v1"
-    $env:ROCKET_CORS_ORIGINS = "http://frontend:8080,http://localhost:8080,http://127.0.0.1:8080"
+    $env:ROCKET_CORS_ORIGINS = "http://frontend,http://frontend:8080,http://localhost:8080,http://127.0.0.1:8080"
 
     Write-Host "[run_tests] Building and starting app stack"
     docker compose up -d --build --remove-orphans db seed app frontend

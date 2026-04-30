@@ -12,7 +12,7 @@ fi
 TEST_RUNNER_IMAGE="${TEST_RUNNER_IMAGE:-eagle_test_runner:local}"
 COMPOSE_PROJECT="${COMPOSE_PROJECT_NAME:-$(basename "$ROOT" | tr '[:upper:]' '[:lower:]')}"
 COMPOSE_NETWORK="${COMPOSE_PROJECT}_default"
-REBUILD_STACK="${REBUILD_STACK:-0}"
+REBUILD_STACK="${REBUILD_STACK:-1}"
 
 cleanup() {
   docker compose down -v --remove-orphans >/dev/null 2>&1 || true
@@ -79,7 +79,7 @@ echo "[run_tests] Cleaning previous test stack state"
 cleanup
 
 export API_BASE="http://app:8001/api/v1"
-export ROCKET_CORS_ORIGINS="http://frontend:8080,http://localhost:8080,http://127.0.0.1:8080"
+export ROCKET_CORS_ORIGINS="http://frontend,http://frontend:8080,http://localhost:8080,http://127.0.0.1:8080"
 
 if [ "$REBUILD_STACK" = "1" ]; then
   echo "[run_tests] Rebuilding and starting app stack"

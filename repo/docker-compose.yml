@@ -46,7 +46,7 @@ services:
       DATABASE_URL: mysql://${MYSQL_USER:-eagle}:${MYSQL_PASSWORD:-change_this_user_password}@db:3306/${MYSQL_DATABASE:-eagle_exam}
       JWT_SECRET: ${JWT_SECRET:-replace_with_long_random_secret}
       AES_KEY_BASE64: ${AES_KEY_BASE64:-MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI=}
-      ROCKET_CORS_ORIGINS: ${ROCKET_CORS_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080,http://frontend:8080}
+      ROCKET_CORS_ORIGINS: ${ROCKET_CORS_ORIGINS:-http://frontend,http://frontend:8080,http://localhost:8080,http://127.0.0.1:8080}
       ROCKET_ADDRESS: 0.0.0.0
       ROCKET_PORT: 8001
     ports:
