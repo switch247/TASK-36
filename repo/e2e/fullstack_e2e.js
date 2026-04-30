@@ -155,7 +155,7 @@ async function outputsAndExportFlow(page, sessionId) {
   await selects.nth(2).selectOption('TestPrint');
   await page.getByRole('button', { name: 'Generate Output' }).click();
   await expectToast(page, 'Output generated');
-  await page.getByText(sessionId, { exact: false }).waitFor({ timeout: 30000 });
+  await page.getByRole('cell', { name: sessionId, exact: true }).waitFor({ timeout: 30000 });
 
   await page.getByRole('link', { name: 'Reports' }).click();
   await page.getByRole('heading', { name: 'Reports' }).waitFor({ timeout: 30000 });
