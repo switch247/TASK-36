@@ -12,9 +12,10 @@ fi
 TEST_RUNNER_IMAGE="${TEST_RUNNER_IMAGE:-eagle_test_runner:local}"
 COMPOSE_PROJECT="${COMPOSE_PROJECT_NAME:-$(basename "$ROOT" | tr '[:upper:]' '[:lower:]')}"
 COMPOSE_NETWORK="${COMPOSE_PROJECT}_default"
+REBUILD_STACK="${REBUILD_STACK:-0}"
 
 cleanup() {
-  # docker compose down -v --remove-orphans >/dev/null 2>&1 || true
+  docker compose down -v --remove-orphans >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
@@ -80,8 +81,13 @@ cleanup
 export API_BASE="http://app:8001/api/v1"
 export ROCKET_CORS_ORIGINS="http://frontend:8080,http://localhost:8080,http://127.0.0.1:8080"
 
-echo "[run_tests] Building and starting app stack"
-docker compose up -d --build --remove-orphans db seed app frontend
+if [ "$REBUILD_STACK" = "1" ]; then
+  echo "[run_tests] Rebuilding and starting app stack"
+  docker compose up -d --build --remove-orphans db seed app frontend
+else
+  echo "[run_tests] Starting app stack without rebuild (set REBUILD_STACK=1 to rebuild)"
+  docker compose up -d --remove-orphans db seed app frontend
+fi
 
 MYSQL_USER="${MYSQL_USER:-eagle}"
 MYSQL_PASSWORD="${MYSQL_PASSWORD:-change_this_user_password}"
