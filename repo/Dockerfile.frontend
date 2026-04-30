@@ -26,16 +26,16 @@ RUN rustup target add wasm32-unknown-unknown
 WORKDIR /usr/src/eagle
 COPY . .
 
-# Build the web assets in release mode
+# Build the web bundle in release mode.
 WORKDIR /usr/src/eagle/frontend
-RUN dx build --release --platform web
-RUN test -f dist/index.html
+RUN dx bundle --platform web --release
+RUN test -f /usr/src/eagle/target/dx/frontend/release/web/public/index.html
 
 # 2. Runtime Stage
 FROM nginx:alpine
 
-# Copy the compiled frontend into nginx.
-COPY --from=builder /usr/src/eagle/frontend/dist/ /usr/share/nginx/html/
+# Copy the bundled static site into nginx.
+COPY --from=builder /usr/src/eagle/target/dx/frontend/release/web/public/ /usr/share/nginx/html/
 
 EXPOSE 80
 
