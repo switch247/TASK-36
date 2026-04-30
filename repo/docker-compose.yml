@@ -64,7 +64,7 @@ services:
     environment:
       API_BASE: ${API_BASE:-http://localhost:8000/api/v1}
     ports:
-      - "8080:80"
+      - "8080:8080"
     restart: unless-stopped
 
   seed:
