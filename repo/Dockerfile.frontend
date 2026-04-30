@@ -1,11 +1,43 @@
-FROM rust:latest
+# FROM rust:latest
 
+# RUN cargo install dioxus-cli --version 0.7.3 --locked
+
+# WORKDIR /usr/src/eagle
+# COPY . .
+
+# WORKDIR /usr/src/eagle/frontend
+# EXPOSE 8080
+
+# CMD ["dx", "serve", "--platform", "web", "--port", "8080", "--addr", "0.0.0.0"]
+
+
+# 1. Build Stage
+FROM rust:slim-bookworm as builder
+
+# Install minimal build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config libssl-dev curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Dioxus CLI and WASM target
 RUN cargo install dioxus-cli --version 0.7.3 --locked
+RUN rustup target add wasm32-unknown-unknown
 
 WORKDIR /usr/src/eagle
 COPY . .
 
+# Build the web assets in release mode
 WORKDIR /usr/src/eagle/frontend
-EXPOSE 8080
+RUN dx build --release --platform web
 
-CMD ["dx", "serve", "--platform", "web", "--port", "8080", "--addr", "0.0.0.0"]
+# 2. Runtime Stage
+FROM nginx:alpine
+
+
+# Copy the static assets from the builder stage
+# If you later configure Dioxus to output a 'dist' directory, update this path accordingly.
+COPY --from=builder /usr/src/eagle/frontend/static /usr/share/nginx/html
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

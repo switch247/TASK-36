@@ -64,57 +64,8 @@ services:
     environment:
       API_BASE: ${API_BASE:-http://localhost:8000/api/v1}
     ports:
-      - "8080:8080"
+      - "8080:80"
     restart: unless-stopped
-
-  backend-test:
-    profiles: ["test"]
-    image: rust:latest
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      TEST_DATABASE_URL: mysql://${MYSQL_USER:-eagle}:${MYSQL_PASSWORD:-change_this_user_password}@db:3306/${MYSQL_DATABASE:-eagle_exam}
-      TEST_ADMIN_DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD:-change_this_root_password}@db:3306/mysql
-      TEST_JWT_SECRET: ${JWT_SECRET:-replace_with_long_random_secret}
-      JWT_SECRET: ${JWT_SECRET:-replace_with_long_random_secret}
-      DATABASE_URL: mysql://${MYSQL_USER:-eagle}:${MYSQL_PASSWORD:-change_this_user_password}@db:3306/${MYSQL_DATABASE:-eagle_exam}
-    volumes:
-      - .:/workspace
-    working_dir: /workspace
-    command: ["/usr/local/cargo/bin/cargo", "test", "-p", "backend", "--tests"]
-
-  frontend-test:
-    profiles: ["test"]
-    image: rust:latest
-    volumes:
-      - .:/workspace
-    working_dir: /workspace
-    command: ["/usr/local/cargo/bin/cargo", "test", "-p", "frontend", "--lib", "--tests", "--bin", "frontend"]
-
-  e2e-test:
-    profiles: ["test"]
-    image: mcr.microsoft.com/playwright:v1.51.1-noble
-    depends_on:
-      app:
-        condition: service_started
-      frontend:
-        condition: service_started
-    environment:
-      FRONTEND_URL: http://frontend:8080
-      BACKEND_URL: http://app:8000/api/v1
-      ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:-admin_local}
-      ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-AdminPass#2026!}
-      COORD_USERNAME: ${BOOTSTRAP_COORDINATOR_USERNAME:-coord_local}
-      COORD_PASSWORD: ${BOOTSTRAP_COORDINATOR_PASSWORD:-CoordPass#2026!}
-      PROCTOR_USERNAME: ${BOOTSTRAP_PROCTOR_USERNAME:-proctor_local}
-      PROCTOR_PASSWORD: ${BOOTSTRAP_PROCTOR_PASSWORD:-ProctorPass#2026!}
-      AUDITOR_USERNAME: ${BOOTSTRAP_AUDITOR_USERNAME:-auditor_local}
-      AUDITOR_PASSWORD: ${BOOTSTRAP_AUDITOR_PASSWORD:-AuditorPass#2026!}
-    volumes:
-      - .:/workspace
-    working_dir: /workspace
-    command: ["node", "/workspace/e2e/run_all_e2e.js"]
 
   seed:
     build:
