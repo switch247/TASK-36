@@ -62,7 +62,9 @@ async function login(page, { username, password }) {
   await page.getByPlaceholder('Username').fill(username);
   await page.getByPlaceholder('Password').fill(password);
   await page.getByRole('button', { name: 'Sign In' }).click();
-  await expectToast(page, 'Login successful');
+  await page.waitForFunction(() => !!window.localStorage.getItem('proctorops_auth_session'), { timeout: 30000 });
+  await page.getByRole('button', { name: 'Logout' }).waitFor({ timeout: 30000 });
+  await page.getByRole('heading', { name: 'Login' }).waitFor({ state: 'detached', timeout: 30000 }).catch(() => {});
 }
 
 async function logout(page) {
