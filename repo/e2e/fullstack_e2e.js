@@ -12,7 +12,49 @@ const creds = {
 };
 
 async function expectToast(page, text) {
-  await page.getByText(text, { exact: false }).waitFor({ timeout: 30000 });
+  try {
+    await page.getByText(text, { exact: false }).waitFor({ timeout: 30000 });
+  } catch (err) {
+    await dumpUiState(page, `missing toast: ${text}`);
+    throw err;
+  }
+}
+
+async function dumpUiState(page, label) {
+  console.error(`\n[ui-debug] ${label}`);
+  console.error(`[ui-debug] url=${page.url()}`);
+  try {
+    const toasts = await page.locator('.fixed.top-4.right-4').allTextContents();
+    console.error(`[ui-debug] toasts=${JSON.stringify(toasts)}`);
+  } catch (err) {
+    console.error(`[ui-debug] toasts=<unavailable: ${err.message}>`);
+  }
+  try {
+    const selects = await page.locator('select').evaluateAll((nodes) =>
+      nodes.map((node) => ({
+        value: node.value,
+        options: Array.from(node.options).map((opt) => ({
+          value: opt.value,
+          text: opt.text,
+        })),
+      })),
+    );
+    console.error(`[ui-debug] selects=${JSON.stringify(selects)}`);
+  } catch (err) {
+    console.error(`[ui-debug] selects=<unavailable: ${err.message}>`);
+  }
+  try {
+    const body = await page.textContent('body');
+    console.error(`[ui-debug] body=${JSON.stringify((body || '').slice(0, 4000))}`);
+  } catch (err) {
+    console.error(`[ui-debug] body=<unavailable: ${err.message}>`);
+  }
+  try {
+    const session = await page.evaluate(() => window.localStorage.getItem('proctorops_auth_session'));
+    console.error(`[ui-debug] localStorage.proctorops_auth_session=${session}`);
+  } catch (err) {
+    console.error(`[ui-debug] localStorage=<unavailable: ${err.message}>`);
+  }
 }
 
 async function login(page, { username, password }) {
@@ -140,6 +182,30 @@ async function roleRestrictedFlow(page) {
 async function main() {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
+  page.on('console', (msg) => console.error(`[browser:${msg.type()}] ${msg.text()}`));
+  page.on('pageerror', (err) => console.error(`[pageerror] ${err.message}`));
+  page.on('requestfailed', (req) =>
+    console.error(
+      `[requestfailed] ${req.method()} ${req.url()} ${req.failure() ? req.failure().errorText : 'unknown'}`,
+    ),
+  );
+  page.on('response', async (resp) => {
+    const url = resp.url();
+    if (!url.startsWith(BACKEND_URL)) {
+      return;
+    }
+    const status = resp.status();
+    if (status < 400 && !url.includes('/candidates')) {
+      return;
+    }
+    let body = '';
+    try {
+      body = await resp.text();
+    } catch (err) {
+      body = `<unavailable: ${err.message}>`;
+    }
+    console.error(`[api] ${status} ${url} ${body.slice(0, 1000)}`);
+  });
   try {
     const unique = `${Date.now()}`;
     await login(page, creds.admin);
