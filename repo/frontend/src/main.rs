@@ -5,6 +5,8 @@ use gloo_net::http::Request;
 use gloo_timers::future::sleep;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::spawn_local;
 
 const API_BASE_DEFAULT: &str = "http://localhost:8001/api/v1";
@@ -301,8 +303,36 @@ struct MessageDraftReq {
     body: String,
 }
 
-fn api_base() -> &'static str {
-    option_env!("API_BASE").unwrap_or(API_BASE_DEFAULT)
+fn api_base() -> String {
+    #[cfg(target_arch = "wasm32")]
+    {
+        if let Some(base) = runtime_api_base() {
+            return base;
+        }
+    }
+
+    option_env!("API_BASE")
+        .unwrap_or(API_BASE_DEFAULT)
+        .to_string()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn runtime_api_base() -> Option<String> {
+    let window = web_sys::window()?;
+
+    if let Ok(value) = js_sys::Reflect::get(&window, &JsValue::from_str("__API_BASE__")) {
+        if let Some(base) = value.as_string().filter(|base| !base.trim().is_empty()) {
+            return Some(base);
+        }
+    }
+
+    let location = window.location();
+    let hostname = location.hostname().ok()?;
+    match hostname.as_str() {
+        "frontend" => Some("http://app:8001/api/v1".to_string()),
+        "localhost" | "127.0.0.1" => Some(format!("http://{hostname}:8001/api/v1")),
+        _ => None,
+    }
 }
 
 fn gen_id(prefix: &str) -> String {
