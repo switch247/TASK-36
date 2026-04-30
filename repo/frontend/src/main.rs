@@ -336,7 +336,8 @@ fn runtime_api_base() -> Option<String> {
 }
 
 fn gen_id(prefix: &str) -> String {
-    format!("{prefix}-{}", uuid::Uuid::new_v4())
+    let _ = prefix;
+    uuid::Uuid::new_v4().to_string()
 }
 
 #[component]
@@ -1880,11 +1881,10 @@ mod tests {
     }
 
     #[test]
-    fn gen_id_contains_prefix_and_uuid_length() {
+    fn gen_id_matches_database_uuid_shape() {
         let id = gen_id("cand");
-        assert!(id.starts_with("cand-"));
-        // UUID-v4 has 36 chars; total = "cand-" (5) + 36 = 41.
-        assert_eq!(id.len(), 41);
+        assert_eq!(id.len(), 36);
+        assert!(uuid::Uuid::parse_str(&id).is_ok());
     }
 
     #[test]
