@@ -12,11 +12,19 @@ WORKDIR /usr/src/eagle
 # Cache dependency resolution separately from full source copies.
 COPY Cargo.toml Cargo.lock ./
 COPY backend/Cargo.toml backend/Cargo.toml
+COPY backend/src/main.rs backend/src/main.rs
+COPY backend/src/bin/seed.rs backend/src/bin/seed.rs
 COPY frontend/Cargo.toml frontend/Cargo.toml
+COPY frontend/src/lib.rs frontend/src/lib.rs
+COPY frontend/src/main.rs frontend/src/main.rs
 COPY app/core/Cargo.toml app/core/Cargo.toml
+COPY app/core/src/lib.rs app/core/src/lib.rs
 COPY app/models/Cargo.toml app/models/Cargo.toml
+COPY app/models/src/lib.rs app/models/src/lib.rs
 COPY app/api/v1/Cargo.toml app/api/v1/Cargo.toml
+COPY app/api/v1/src/lib.rs app/api/v1/src/lib.rs
 COPY app/services/Cargo.toml app/services/Cargo.toml
+COPY app/services/src/lib.rs app/services/src/lib.rs
 RUN cargo fetch
 
 # Copy the rest of the source code
