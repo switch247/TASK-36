@@ -26,6 +26,7 @@ FROM mcr.microsoft.com/playwright:v1.51.1-noble as test-runner
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CARGO_HOME=/usr/local/cargo
 ENV RUSTUP_HOME=/usr/local/rustup
+ENV NODE_PATH=/opt/test-deps/node_modules
 ENV PATH=/usr/local/cargo/bin:/root/.cargo/bin:${PATH}
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -36,6 +37,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
+RUN npm install --prefix /opt/test-deps playwright@1.51.1
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain stable
 RUN rustup target add wasm32-unknown-unknown
 

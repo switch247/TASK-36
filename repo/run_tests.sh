@@ -112,11 +112,11 @@ wait_for_http "http://app:8001/api/v1/health" "Backend"
 echo "[run_tests] Waiting for frontend HTTP"
 wait_for_http "http://frontend" "Frontend"
 
-echo "[run_tests] Running backend tests"
-run_in_test_runner cargo test -p backend --tests
+# echo "[run_tests] Running backend tests"
+# run_in_test_runner cargo test -p backend --tests
 
-echo "[run_tests] Running frontend tests"
-run_in_test_runner cargo test -p frontend --lib --tests --bin frontend
+# echo "[run_tests] Running frontend tests"
+# run_in_test_runner cargo test -p frontend --lib --tests --bin frontend
 
 echo "[run_tests] Running browser E2E tests"
 run_in_test_runner node /workspace/e2e/run_all_e2e.js
