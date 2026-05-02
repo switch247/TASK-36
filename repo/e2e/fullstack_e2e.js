@@ -1,102 +1,17 @@
 const assert = require('node:assert/strict');
-const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE || 'playwright');
-
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://frontend:8080';
-const BACKEND_URL = process.env.BACKEND_URL || 'http://app:8001/api/v1';
-
-const creds = {
-  admin: { username: process.env.ADMIN_USERNAME || 'admin_local', password: process.env.ADMIN_PASSWORD || 'AdminPass#2026!' },
-  coordinator: { username: process.env.COORD_USERNAME || 'coord_local', password: process.env.COORD_PASSWORD || 'CoordPass#2026!' },
-  proctor: { username: process.env.PROCTOR_USERNAME || 'proctor_local', password: process.env.PROCTOR_PASSWORD || 'ProctorPass#2026!' },
-  auditor: { username: process.env.AUDITOR_USERNAME || 'auditor_local', password: process.env.AUDITOR_PASSWORD || 'AuditorPass#2026!' },
-};
-
-async function expectToast(page, text) {
-  try {
-    await page.getByText(text, { exact: false }).waitFor({ timeout: 30000 });
-  } catch (err) {
-    await dumpUiState(page, `missing toast: ${text}`);
-    throw err;
-  }
-}
-
-async function dumpUiState(page, label) {
-  console.error(`\n[ui-debug] ${label}`);
-  console.error(`[ui-debug] url=${page.url()}`);
-  try {
-    const toasts = await page.locator('.fixed.top-4.right-4').allTextContents();
-    console.error(`[ui-debug] toasts=${JSON.stringify(toasts)}`);
-  } catch (err) {
-    console.error(`[ui-debug] toasts=<unavailable: ${err.message}>`);
-  }
-  try {
-    const selects = await page.locator('select').evaluateAll((nodes) =>
-      nodes.map((node) => ({
-        value: node.value,
-        options: Array.from(node.options).map((opt) => ({
-          value: opt.value,
-          text: opt.text,
-        })),
-      })),
-    );
-    console.error(`[ui-debug] selects=${JSON.stringify(selects)}`);
-  } catch (err) {
-    console.error(`[ui-debug] selects=<unavailable: ${err.message}>`);
-  }
-  try {
-    const body = await page.textContent('body');
-    console.error(`[ui-debug] body=${JSON.stringify((body || '').slice(0, 4000))}`);
-  } catch (err) {
-    console.error(`[ui-debug] body=<unavailable: ${err.message}>`);
-  }
-  try {
-    const session = await page.evaluate(() => window.localStorage.getItem('proctorops_auth_session'));
-    console.error(`[ui-debug] localStorage.proctorops_auth_session=${session}`);
-  } catch (err) {
-    console.error(`[ui-debug] localStorage=<unavailable: ${err.message}>`);
-  }
-}
-
-async function login(page, { username, password }) {
-  await page.goto(FRONTEND_URL, { waitUntil: 'networkidle', timeout: 120000 });
-  await page.getByPlaceholder('Username').fill(username);
-  await page.getByPlaceholder('Password').fill(password);
-  await page.getByRole('button', { name: 'Sign In' }).click();
-  await page.waitForFunction(() => !!window.localStorage.getItem('proctorops_auth_session'), { timeout: 30000 });
-  await page.getByRole('button', { name: 'Logout' }).waitFor({ timeout: 30000 });
-  await page.getByRole('heading', { name: 'Login' }).waitFor({ state: 'detached', timeout: 30000 }).catch(() => {});
-}
-
-async function logout(page) {
-  await page.getByRole('button', { name: 'Logout' }).click();
-  await expectToast(page, 'Logged out');
-  await page.getByRole('heading', { name: 'Login' }).waitFor({ timeout: 30000 });
-}
-
-async function getStoredSession(page) {
-  const raw = await page.evaluate(() => window.localStorage.getItem('proctorops_auth_session'));
-  assert.ok(raw, 'expected stored auth session');
-  return JSON.parse(raw);
-}
-
-async function api(page, path, options = {}) {
-  const session = await getStoredSession(page);
-  const headers = {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${session.jwt}`,
-    'x-session-id': session.session_id,
-    ...(options.headers || {}),
-  };
-  return page.request.fetch(`${BACKEND_URL}${path}`, {
-    method: options.method || 'GET',
-    headers,
-    data: options.data,
-  });
-}
+const { test, expect } = require('@playwright/test');
+const {
+  FRONTEND_URL,
+  creds,
+  expectToast,
+  login,
+  logout,
+  api,
+} = require('./helpers');
 
 async function createCandidateFlow(page, unique) {
   await page.getByRole('link', { name: 'Candidates' }).click();
-  await page.getByRole('heading', { name: 'Candidates' }).waitFor({ timeout: 30000 });
+  await expect(page.getByRole('heading', { name: 'Candidates' })).toBeVisible({ timeout: 30000 });
   await page.getByPlaceholder('DOB (MM/DD/YYYY)').fill('03/27/2001');
   await page.getByPlaceholder('National ID').fill(`ID-${unique}`);
   await page.getByPlaceholder('Barcode').fill(`BAR-${unique}`);
@@ -104,12 +19,12 @@ async function createCandidateFlow(page, unique) {
   await page.locator('select').first().selectOption({ index: 1 });
   await page.getByRole('button', { name: 'Create' }).click();
   await expectToast(page, 'Candidate created');
-  await page.getByText(`BAR-${unique}`, { exact: false }).waitFor({ timeout: 30000 });
+  await expect(page.getByText(`BAR-${unique}`, { exact: false })).toBeVisible({ timeout: 30000 });
 }
 
-async function createSessionAndAssignmentFlow(page, unique) {
+async function createSessionAndAssignmentFlow(page) {
   await page.getByRole('link', { name: 'Exams' }).click();
-  await page.getByRole('heading', { name: 'Exams' }).waitFor({ timeout: 30000 });
+  await expect(page.getByRole('heading', { name: 'Exams' })).toBeVisible({ timeout: 30000 });
   await page.getByPlaceholder('Template Name').fill('base-template');
   await page.getByPlaceholder('Duration Minutes').fill('75');
   await page.getByPlaceholder('Starts (MM/DD/YYYY hh:mm AM/PM)').fill('04/10/2026 09:00 AM');
@@ -138,8 +53,8 @@ async function createSessionAndAssignmentFlow(page, unique) {
   await logout(page);
   await login(page, creds.proctor);
   await page.goto(`${FRONTEND_URL}/sessions`, { waitUntil: 'networkidle', timeout: 120000 });
-  await page.getByRole('heading', { name: 'Sessions' }).waitFor({ timeout: 30000 });
-  await page.getByText(createdSession.id, { exact: false }).waitFor({ timeout: 30000 });
+  await expect(page.getByRole('heading', { name: 'Sessions' })).toBeVisible({ timeout: 30000 });
+  await expect(page.getByRole('cell', { name: createdSession.id, exact: true })).toBeVisible({ timeout: 30000 });
 
   await logout(page);
   await login(page, creds.admin);
@@ -148,80 +63,68 @@ async function createSessionAndAssignmentFlow(page, unique) {
 
 async function outputsAndExportFlow(page, sessionId) {
   await page.goto(`${FRONTEND_URL}/outputs`, { waitUntil: 'networkidle', timeout: 120000 });
-  await page.getByRole('heading', { name: 'Outputs' }).waitFor({ timeout: 30000 });
+  await expect(page.getByRole('heading', { name: 'Outputs' })).toBeVisible({ timeout: 30000 });
   await page.selectOption('select', { label: sessionId });
   const selects = page.locator('select');
   await selects.nth(1).selectOption('AdmitCard');
   await selects.nth(2).selectOption('TestPrint');
   await page.getByRole('button', { name: 'Generate Output' }).click();
   await expectToast(page, 'Output generated');
-  await page.getByRole('cell', { name: sessionId, exact: true }).waitFor({ timeout: 30000 });
+  await expect(page.getByRole('cell', { name: sessionId, exact: true })).toBeVisible({ timeout: 30000 });
 
   await page.getByRole('link', { name: 'Reports' }).click();
-  await page.getByRole('heading', { name: 'Reports' }).waitFor({ timeout: 30000 });
+  await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible({ timeout: 30000 });
   await page.getByRole('button', { name: 'Export Incident CSV' }).click();
   await expectToast(page, 'CSV ready:');
 }
 
 async function dashboardLoadFlow(page) {
   await page.goto(`${FRONTEND_URL}/dashboard`, { waitUntil: 'networkidle', timeout: 120000 });
-  await page.getByRole('heading', { name: 'Dashboard' }).waitFor({ timeout: 30000 });
-  await page.getByText('Upcoming Sessions', { exact: false }).waitFor({ timeout: 30000 });
-  await page.getByText('Recent Outputs', { exact: false }).waitFor({ timeout: 30000 });
-  await page.getByText('Seat Utilization Trend', { exact: false }).waitFor({ timeout: 30000 });
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 30000 });
+  await expect(page.getByText('Upcoming Sessions', { exact: false })).toBeVisible({ timeout: 30000 });
+  await expect(page.getByText('Recent Outputs', { exact: false })).toBeVisible({ timeout: 30000 });
+  await expect(page.getByText('Seat Utilization Trend', { exact: false })).toBeVisible({ timeout: 30000 });
 }
 
 async function roleRestrictedFlow(page) {
   await logout(page);
   await login(page, creds.auditor);
-  await page.getByRole('heading', { name: 'Dashboard' }).waitFor({ timeout: 30000 });
-  await page.getByRole('link', { name: 'Outputs' }).waitFor({ state: 'detached', timeout: 10000 }).catch(() => {});
-  assert.equal(await page.getByRole('link', { name: 'Outputs' }).count(), 0, 'auditor must not see Outputs nav');
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 30000 });
+  await expect(page.getByRole('link', { name: 'Outputs' })).toHaveCount(0, { timeout: 10000 });
   await page.goto(`${FRONTEND_URL}/admin`, { waitUntil: 'networkidle', timeout: 120000 });
   await expectToast(page, 'HTTP 403');
 }
 
-async function main() {
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
-  page.on('console', (msg) => console.error(`[browser:${msg.type()}] ${msg.text()}`));
-  page.on('pageerror', (err) => console.error(`[pageerror] ${err.message}`));
-  page.on('requestfailed', (req) =>
-    console.error(
-      `[requestfailed] ${req.method()} ${req.url()} ${req.failure() ? req.failure().errorText : 'unknown'}`,
-    ),
-  );
-  page.on('response', async (resp) => {
-    const url = resp.url();
-    if (!url.startsWith(BACKEND_URL)) {
-      return;
-    }
-    const status = resp.status();
-    if (status < 400 && !url.includes('/candidates')) {
-      return;
-    }
-    let body = '';
-    try {
-      body = await resp.text();
-    } catch (err) {
-      body = `<unavailable: ${err.message}>`;
-    }
-    console.error(`[api] ${status} ${url} ${body.slice(0, 1000)}`);
-  });
-  try {
-    const unique = `${Date.now()}`;
+test.describe('Fullstack E2E', () => {
+  test('admin can load dashboard', async ({ page }) => {
     await login(page, creds.admin);
     await dashboardLoadFlow(page);
-    await createCandidateFlow(page, unique);
-    const sessionId = await createSessionAndAssignmentFlow(page, unique);
-    await outputsAndExportFlow(page, sessionId);
-    await roleRestrictedFlow(page);
-  } finally {
-    await browser.close();
-  }
-}
+  });
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
+  test('admin can create a candidate', async ({ page }) => {
+    const unique = `${Date.now()}`;
+    await login(page, creds.admin);
+    await createCandidateFlow(page, unique);
+  });
+
+  test('admin can create and assign an exam session to proctor', async ({ page }) => {
+    const unique = `${Date.now()}`;
+    await login(page, creds.admin);
+    await createCandidateFlow(page, unique);
+    const sessionId = await createSessionAndAssignmentFlow(page);
+    assert.ok(sessionId, 'expected created session id');
+  });
+
+  test('admin can generate outputs and export reports', async ({ page }) => {
+    const unique = `${Date.now()}`;
+    await login(page, creds.admin);
+    await createCandidateFlow(page, unique);
+    const sessionId = await createSessionAndAssignmentFlow(page);
+    await outputsAndExportFlow(page, sessionId);
+  });
+
+  test('auditor is restricted from admin surface', async ({ page }) => {
+    await login(page, creds.auditor);
+    await roleRestrictedFlow(page);
+  });
 });

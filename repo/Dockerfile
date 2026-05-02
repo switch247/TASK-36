@@ -52,7 +52,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-RUN npm install --prefix /opt/test-deps playwright@1.51.1
+RUN npm install --prefix /opt/test-deps playwright@1.51.1 @playwright/test@1.51.1
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain stable
 RUN rustup target add wasm32-unknown-unknown
 
