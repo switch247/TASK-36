@@ -12,7 +12,7 @@ fi
 TEST_RUNNER_IMAGE="${TEST_RUNNER_IMAGE:-eagle_test_runner:local}"
 COMPOSE_PROJECT="${COMPOSE_PROJECT_NAME:-$(basename "$ROOT" | tr '[:upper:]' '[:lower:]')}"
 COMPOSE_NETWORK="${COMPOSE_PROJECT}_default"
-REBUILD_STACK="${REBUILD_STACK:-1}"
+REBUILD_STACK="${REBUILD_STACK:-0}"
 
 cleanup() {
   docker compose down -v --remove-orphans >/dev/null 2>&1 || true
