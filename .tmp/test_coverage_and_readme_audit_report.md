@@ -297,7 +297,6 @@ End-to-end expectation for fullstack:
 - Present.
 - Evidence:
   - browser E2E files `e2e/fullstack_e2e.js`, `e2e/role_matrix_e2e.js`
-  - compose service `e2e-test` in `docker-compose.yml:86-108`
 
 ## Test Coverage Score
 
