@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { chromium } = require('playwright');
+const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE || 'playwright');
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://frontend:8080';
 const BACKEND_URL = process.env.BACKEND_URL || 'http://app:8001/api/v1';

@@ -41,6 +41,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV CARGO_HOME=/usr/local/cargo
 ENV RUSTUP_HOME=/usr/local/rustup
 ENV NODE_PATH=/opt/test-deps/node_modules
+ENV PLAYWRIGHT_PACKAGE=/opt/test-deps/node_modules/playwright
 ENV PATH=/usr/local/cargo/bin:/root/.cargo/bin:${PATH}
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
